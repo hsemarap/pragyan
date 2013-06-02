@@ -7,6 +7,7 @@ if(!defined('__PRAGYAN_CMS'))
 	exit(1);
 }
 /**
+ * @author D.Parameswaran <hsemarap@gmail.com>
  * @package pragyan
  * @copyright (c) 2013 Delta Webteam NIT Trichy
  * @license http://www.gnu.org/licenses/ GNU Public License
@@ -138,6 +139,8 @@ $html=<<<HTML
 				<style>
 input{width:auto;background-color:white;color:black;}
 .participant_div{display:none;}
+.small{width:60px;}
+input[type=checkbox]{width:30px;}
 </style>
 <script>
 $(function(){
@@ -146,7 +149,8 @@ $(".participant").change(function(){
 if($(this).is(":checkbox")!=true)
 var query="UPDATE `tournament_participants` SET `"+$(this).attr('name')+"` = '"+$(this).attr('value')+"' WHERE `id` = '"+$(this).attr('data_id')+"'";
 else
-var query="UPDATE `tournament_participants` SET `"+$(this).attr('name')+"` = '"+$(this).attr('checked')+"' WHERE `id` = '"+$(this).attr('data_id')+"'";
+var query="UPDATE `tournament_participants` SET `"+$(this).attr('name')+"` = '"+($(this).attr('checked')==true?1:0)+"' WHERE `id` = '"+$(this).attr('data_id')+"'";
+
 $.ajax({type:"POST",url:"./+edit",data:{update:1,query:query}});
 });
 $(".group").change(function(){
@@ -166,19 +170,24 @@ HTML;
 		$query="SELECT * FROM `tournament_participants` ORDER BY `group`,`name`";
 		$res=mysql_query($query);
 		while($row=mysql_fetch_assoc($res))
+{
+$temp=array();
+$temp[]="";
+for($i=1;$i<20;$i++)$temp[]=$row['rink'.$i]?"checked":"";	
 $html.=<<<HTML
 <div class='$row[group] participant_div'>
-<input class='participant' name='name' data_id="$row[id]" value="$row[name]"><input class='participant' name='gender' data_id="$row[id]" value="$row[gender]"><input class='participant' name='club' data_id="$row[id]" value="$row[club]">
-<input class='participant' name='group' data_id="$row[id]" value="$row[group]"><input class='participant' name='dob' data_id="$row[id]" value="$row[dob]"><input class='participant' name='blood' data_id="$row[id]" value="$row[blood]">  
-<input class='participant' name='phone1' data_id="$row[id]" value="$row[phone1]"><input class='participant' name='phone2' data_id="$row[id]" value="$row[phone2]">
-<input class='participant' name='rink1' data_id="$row[id]" type="checkbox" checked=$row[rink1]><input class='participant' name='rink2' data_id="$row[id]" type="checkbox" checked=$row[rink2]>
-<input class='participant' name='rink3' data_id="$row[id]" type="checkbox" checked=$row[rink3]><input class='participant' name='rink4' data_id="$row[id]" type="checkbox" checked=$row[rink4]>
-<input class='participant' name='rink5' data_id="$row[id]" type="checkbox" checked=$row[rink5]><input class='participant' name='rink6' data_id="$row[id]" type="checkbox" checked=$row[rink6]>
-<input class='participant' name='rink7' data_id="$row[id]" type="checkbox" checked=$row[rink7]><input class='participant' name='rink8' data_id="$row[id]" type="checkbox" checked=$row[rink8]>
-<input class='participant' name='rink9' data_id="$row[id]" type="checkbox" checked=$row[rink9]><input class='participant' name='rink10' data_id="$row[id]" type="checkbox" checked=$row[rink10]>
+<input class='participant' name='name' data_id="$row[id]" value="$row[name]"><input class='participant small' name='gender' data_id="$row[id]" value="$row[gender]"><input class='participant small' name='club' data_id="$row[id]" value="$row[club]">
+<input class='participant small' name='group' data_id="$row[id]" value="$row[group]"><input class='participant small' name='dob' data_id="$row[id]" value="$row[dob]"><input class='participant small' name='blood' data_id="$row[id]" value="$row[blood]">  
+<input class='participant small' name='phone1' data_id="$row[id]" value="$row[phone1]"><input class='participant small' name='phone2' data_id="$row[id]" value="$row[phone2]">
+1<input class='participant' name='rink1' data_id="$row[id]" type="checkbox" $temp[1]>2<input class='participant' name='rink2' data_id="$row[id]" type="checkbox" $temp[2]>
+3<input class='participant' name='rink3' data_id="$row[id]" type="checkbox" $temp[3]>4<input class='participant' name='rink4' data_id="$row[id]" type="checkbox" $temp[4]>
+5<input class='participant' name='rink5' data_id="$row[id]" type="checkbox" $temp[5]>6<input class='participant' name='rink6' data_id="$row[id]" type="checkbox" $temp[6]>
+7<input class='participant' name='rink7' data_id="$row[id]" type="checkbox" $temp[7]>8<input class='participant' name='rink8' data_id="$row[id]" type="checkbox" $temp[8]>
+9<input class='participant' name='rink9' data_id="$row[id]" type="checkbox" $temp[9]>10<input class='participant' name='rink10' data_id="$row[id]" type="checkbox" $temp[10]>
 </div>
 <br/>
 HTML;
+}
 		return $html;
 	}
 	public function actionGenderedit() {
