@@ -1,0 +1,84 @@
+include("./tournament/excel.php");
+			 $ctr=0;
+			$date = date_create();
+			$timeStamp = date_timestamp_get($date);
+			move_uploaded_file($_FILES["file"]["tmp_name"],"./tournament/upload/" . $_FILES["file"]["name"]);
+			$excelData = readExcelSheet("./tournament/upload/" . $_FILES["file"]["name"]);
+			//print_r($excelData);
+			for($i=2;$i<=count($excelData);$i++) {
+			if($excelData[$i][1] == NULL) continue;
+	$ii=1;
+			$regno = mysql_real_escape_string($excelData[$i][$ii++]);
+			$name= mysql_real_escape_string($excelData[$i][$ii++]);
+			$gender= mysql_real_escape_string($excelData[$i][$ii++]);
+			$dob= mysql_real_escape_string($excelData[$i][$ii++]);
+			$club= mysql_real_escape_string($excelData[$i][$ii++]);
+			$phone1= mysql_real_escape_string($excelData[$i][$ii++]);
+			$phone2= mysql_real_escape_string($excelData[$i][$ii++]);
+			$y=substr($dob,-4);
+	if(strlen($dob)==10)
+	{
+	$m=substr($dob,3,2);
+	$d=substr($dob,0,2);
+	}
+	else if(strlen($dob)==8)
+	{
+	$m=substr($dob,2,1);
+	$d=substr($dob,0,1);
+	}
+	else if(strlen($dob)==9)
+	{
+	if($dob[2]=='/'||$dob[2]=='-')
+	{
+	$m=substr($dob,3,1);
+	$d=substr($dob,0,2);
+	}
+	else 
+	{
+	$m=substr($dob,2,2);
+	$d=substr($dob,0,1);
+	}
+	}
+	$nowyear=date('Y');
+	$nowyear=2013;
+	$y=intval($y);
+	//$m=intval($m);
+	//$d=intval($d);
+
+	$rinks=array();
+	foreach ($eventname as $ev1)
+	{
+	$d=mysql_real_escape_string($excelData[$i][$ii++]);
+	$rinks[]=(($d=='X'||$d=='Y'||$d=='x'||$d=='y')?1:0);
+	}
+
+	$age=$nowyear-$y;
+	$grp=findgroup($age);
+			$sql1="INSERT IGNORE INTO $table VALUES ('$regno','$name', '$age','$gender','$grp', '$y-$m-$d', '$phone1', '$phone2');";
+	$sql="INSERT IGNORE INTO $table(`reg_no`,`name`, `age`,`gender`,`club`, `age_group`, `date`, `phone1`, `phone2`";
+	foreach ($eventname as $ev1)
+	$sql.=",`".$ev1."`";
+	$sql.=") VALUES ('$regno','$name', '$age','$gender','$club','$grp', '$y-$m-$d', '$phone1', '$phone2'";
+	foreach ($rinks as $r1)
+	$sql.=",".$r1."";
+	$sql.=");";
+	echo $sql;
+//	UNCOMMENT		$result=mysql_query($sql);
+	//echo $sql."<br />";
+	if(mysql_error())
+	echo "ERROR WAS:".mysql_error();
+	else $ctr++;
+	$sql="INSERT IGNORE INTO `$grp $gender`(`reg_no`,`name`, `dob`,`club`";
+	foreach ($eventname as $ev1)
+	$sql.=",`".substr($ev1,4)."`";
+	$sql.=") VALUES ('$regno','$name', '$y-$m-$d', '$club' ";
+	foreach ($rinks as $r1)
+	$sql.=",".$r1."";
+	$sql.=");";
+//	UNCOMMENT	$result=mysql_query($sql);
+	echo $sql;
+	if(mysql_error())
+	echo "ERROR WAS:".mysql_error();
+			}		
+	echo $ctr." entries added successfully";
+
