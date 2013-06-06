@@ -347,7 +347,7 @@ while($rowvar=mysql_fetch_assoc($r))
 	$val=($val!="59:59:59"?$val:"");
 	$html.="<input type='text' class='participant' placeholder='Timer {$j}' name='timer{$j}' data_id='$row[regno]' value='$val'>";
 	}
-	$val=$rowvar['timeravg'];
+	$val=$rowvar['timeravg']; 
 	$val=($val!="59:59:59"?$val:"");
 	$html.="<input type='text' class='participant' placeholder='Timer Average' name='timer{$j}' data_id='$row[regno]' value='$val'>";
 }
