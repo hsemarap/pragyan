@@ -281,6 +281,63 @@ HTML;
 			$(".group").change(function(){
 			$("."+$(this).attr("id")).slideToggle();
 			});
+			$(".timerinput").change(function(){
+				var regno=$(this).attr("data_id");
+				var t1=0,t2=0,t3=0,cnt=0;
+				$(".timer"+regno+".timerinput").each(function(){
+				var timeValue = $(this).attr("value")+"",sHours,sMinutes,sSec;
+				   //alert(timeValue + ' ' + timeValue == "");
+				    timeValue=timeValue.replace('.', ':');
+				    timeValue=timeValue.replace(',', ':');
+				    timeValue=timeValue.replace('-', ':');
+				    timeValue=timeValue.replace('.', ':');
+				    timeValue=timeValue.replace(',', ':');
+				    timeValue=timeValue.replace('-', ':');
+				    if(timeValue == "" || (timeValue.indexOf(":")<0 && timeValue.indexOf(".")<0 && timeValue.indexOf(" ")<0 ))
+				    {
+				    	//alert(timeValue.indexOf(":")<0 + ' ' + timeValue.indexOf(":"));
+				    }
+				    else
+				    {
+				    	var flag=1;
+				        sHours = timeValue.split(':')[0];
+				        sMinutes = timeValue.split(':')[1];
+				        sSec= timeValue.split(':')[2];
+				        if(sHours == "" || isNaN(sHours) || parseInt(sHours)>59)
+				        {
+				        	flag=0;
+				            alert("Invalid minute format"+parseInt(sHours));
+				        }
+				        else if(parseInt(sHours) == 0)
+				            sHours = "00";
+				        else if (sHours <10)
+				            sHours = "0"+sHours;
+
+				        if(sMinutes == "" || isNaN(sMinutes) || parseInt(sMinutes)>59)
+				        {
+				            alert("Invalid Sec format");
+				            flag=0;
+				        }
+				        else if(parseInt(sMinutes) == 0)
+				            sMinutes = "00";
+				        else if (sMinutes <10)
+				            sMinutes = "0"+sMinutes;    
+				        if(sSec == "" || isNaN(sSec) || parseInt(sSec)>59)
+				        {
+				            alert("Invalid MilliSec format"+sSec);
+				            flag=0;
+				        }
+				        else if(parseInt(sSec) == 0)
+				            sSec = "00";
+				        else if (sSec <10)
+				            sSec = "0"+sSec;        
+				        $(this).attr("value",sHours + ":" + sMinutes + ":" + sSec);        
+				        if(flag){cnt++;t1+=parseInt(sHours);t2+=parseInt(sMinutes);t3+=parseInt(sSec);}
+				    }	
+				});
+				var avg=parseInt(parseInt(t1)/cnt)+":"+parseInt(parseInt(t2)/cnt)+":"+parseInt(parseInt(t3)/cnt);
+				$(".timer"+regno+".timeraverage").attr("value",avg);
+			});
 		});
 		</script><h3>Sort By :</h3>
 		Name <input type='radio' class='sortby' name='order' value='name'>&nbsp;&nbsp;&nbsp;&nbsp;
@@ -334,10 +391,12 @@ if(mysql_num_rows($r)==0)mysql_query($q_insert);
 if(mysql_error())displayerror(mysql_error());
 
 if(mysql_num_rows($r)==0)// now only new data was added
-for($j=1;$j<=5;$j++)
+{for($j=1;$j<=5;$j++)
 $html.=<<<HTML
-<input type='text' class='participant' placeholder='timer {$j}' name='timer{$j}' data_id="$row[regno]" value="">
+<input type='text' class='participant timerinput' placeholder='timer {$j}' name='timer{$j}' data_id="$row[regno]" value="">
 HTML;
+$html.="<input type='text' disabled class='participant timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' value=''>";
+}
 else
 while($rowvar=mysql_fetch_assoc($r))
 {
@@ -345,11 +404,11 @@ while($rowvar=mysql_fetch_assoc($r))
 	{
 	$val=$rowvar['timer'.$j];
 	$val=($val!="59:59:59"?$val:"");
-	$html.="<input type='text' class='participant' placeholder='Timer {$j}' name='timer{$j}' data_id='$row[regno]' value='$val'>";
+	$html.="<input type='text' class='participant timer$row[regno] timerinput' placeholder='Timer {$j}' name='timer{$j}' data_id='$row[regno]' value='$val'>";
 	}
 	$val=$rowvar['timeravg']; 
 	$val=($val!="59:59:59"?$val:"");
-	$html.="<input type='text' class='participant' placeholder='Timer Average' name='timer{$j}' data_id='$row[regno]' value='$val'>";
+	$html.="<input type='text' disabled class='participant timer$row[regno] timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' value='$val'>";
 }
 $html.=<<<HTML
 </div>
