@@ -139,20 +139,20 @@ HTML;
 		while($rr=mysql_fetch_array($r))
 		$html.=$rr['gender']."<input type='checkbox' class='group' id='".$rr['gender']."' checked>&nbsp;&nbsp;&nbsp;&nbsp;";
 		$html.="<br /><br />";
-
+		$html.=<<<HTML
+		<table><thead><tr><th>Name</th><th>Gender</th><th>Club</th><th>Group</th><th>DOB</th><th>Blood</th><th>Ph1</th><th>Ph2</th><th>Rink 1</th><th>Rink 2</th><th>Rink 3</th><th>Rink 4</th><th>Rink 5</th><th>Rink 6</th><th>Rink 7</th><th>Rink 8</th><th>Rink 9</th><th>Rink 10</th></tr></thead><tbody>
+HTML;
 $query="SELECT * FROM `tournament_participants` ORDER BY `name`";
 		$res=mysql_query($query);
 		while($row=mysql_fetch_assoc($res)){
 			$grp=$this->grouptostring($row['group']);
 			$temp=array();
 			$temp[]="";
-			for($i=1;$i<20;$i++)$temp[]=$row['rink'.$i]?"$i":" ";
+			for($i=1;$i<20;$i++)$temp[]=$row['rink'.$i]?"X":"";
 $html.=<<<HTML
-<div class='participant_div $row[gender] $row[club] $row[group]'>
-<pre>
-$row[name]  $row[gender]	$row[club]	$grp	$row[dob]	$row[blood]	$row[phone1] $row[phone2]	$temp[1]	$temp[2]	$temp[3]	$temp[4]	$temp[5]	$temp[6]	$temp[7]	$temp[8]	$temp[9]	$temp[10]
-</pre>
-</div>
+<tr class='participant_div $row[gender] $row[club] $row[group]'>
+<td>$row[name]</td><td>$row[gender]</td><td>$row[club]</td><td>$grp</td><td>$row[dob]</td><td>$row[blood]</td><td>$row[phone1]</td><td>$row[phone2]</td><td>$temp[1]</td><td>$temp[2]</td><td>$temp[3]</td><td>$temp[4]</td><td>$temp[5]</td><td>$temp[6]</td><td>$temp[7]</td><td>$temp[8]</td><td>$temp[9]</td><td>$temp[10]</td>
+</tr>
 HTML;
 }
 		return $html;
@@ -244,117 +244,25 @@ HTML;
 
 	public function actionScoring() {
 		global $sourceFolder;		global $moduleFolder;
-		$html='';
+		$html='<h2>Score the participants</h2>';
 		$basefolder=dirname($_SERVER[SCRIPT_NAME]);
 		$html.=<<<HTML
-		<style>
-		input{width:auto!important;background:white;color:black;size:10;}
-		input[type=text]{width:80px!important;background:white;}
-		input[type=checkbox]{width:20px!important;}
-		.participant_div{padding:2px;background:none;}
-		</style>
 		<script type='text/javascript' src="$basefolder/cms/$moduleFolder/tournament/jquery.cookie.js"></script>
 		<script>
 		$(function(){
 			//$("#content").load("$basefolder/cms/$moduleFolder/tournament/tournament_score.php?by=name");
-			var cookie_sort,cookie_age,cookie_rinkno;
-			cookie_sort=$.cookie("sortby"),cookie_age=$.cookie("agegroup"),cookie_rinkno=$.cookie("rinkno");			
-			if(cookie_sort==undefined)$.cookie("sortby","name");
-			if(cookie_age==undefined)$.cookie("agegroup","06");
-			if(cookie_rinkno==undefined)$.cookie("rinkno","1");
-			cookie_sort=$.cookie("sortby"),cookie_age=$.cookie("agegroup"),cookie_rinkno=$.cookie("rinkno");			
-			$(".sortby").each(function(){if(cookie_sort==$(this).attr("value"))$(this).attr("checked","1");});
-			$(".agegroup > option").each(function(){if(cookie_age==$(this).attr("value"))$(this).attr("selected","true");});
-			$(".rinkno > option").each(function(){if(cookie_rinkno==$(this).attr("value"))$(this).attr("selected","true");});
-			$(".sortby").change(function(){
-				$.cookie("sortby",$(this).attr("value"));
-				window.location=window.location;
-			});
-			$(".agegroup").change(function(){
-				$.cookie("agegroup",$(this).attr("value"));
-				window.location=window.location;
-			});
-			$(".rinkno").change(function(){
-				$.cookie("rinkno",$(this).attr("value"));
-				window.location=window.location;
-			});
+			if($.cookie("sort_by")==undefined)$.cookie("sort_by","name");
 			$(".group").change(function(){
-			$("."+$(this).attr("id")).slideToggle();
+				$.cookie("sort_by",$(this).attr("value"));
+				window.location=window.location;
 			});
 		});
-		</script><h3>Sort By :</h3>
-		Name <input type='radio' class='sortby' name='order' value='name'>&nbsp;&nbsp;&nbsp;&nbsp;
-		AgeGroup <input type='radio' class='sortby' name='order' value='group'>&nbsp;&nbsp;&nbsp;&nbsp;
-		Club <input type='radio' class='sortby' name='order' value='club'>&nbsp;&nbsp;&nbsp;&nbsp;<br /><br />
-		<h3>In</h3>		
-		Age Group :<select class='agegroup'>
-		<option value='06'>Below 6</option>
-		<option value='68'>6 to 8</option>
-		<option value='810'>8 to 10</option>
-		<option value='1012'>10 to 12</option>
-		<option value='1214'>12 to 14</option>
-		<option value='1416'>14 to 16</option>
-		<option value='16'>Above 16</option>
-		</select>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-		Rink no: <select class='rinkno'>
-		<option value='1'>Rink 1</option>
-		<option value='2'>Rink 2</option>
-		<option value='3'>Rink 3</option>
-		<option value='4'>Rink 4</option>
-		<option value='5'>Rink 5</option>
-		<option value='6'>Rink 6</option>
-		<option value='7'>Rink 7</option>
-		<option value='8'>Rink 8</option>
-		<option value='9'>Rink 9</option>
-		<option value='10'>Rink 10</option>
-		</select><br /><br />
+		</script>
+		Name <input type='radio' class='group' name='order' value='name'>&nbsp;&nbsp;&nbsp;&nbsp;
+		AgeGroup <input type='radio' class='group' name='order' value='group'>&nbsp;&nbsp;&nbsp;&nbsp;
+		Club <input type='radio' class='group' name='order' value='club'>&nbsp;&nbsp;&nbsp;&nbsp;
 HTML;
-		$rink_no=mysql_real_escape_string($_COOKIE['rinkno']);
-		$age_group=mysql_real_escape_string($_COOKIE['agegroup']);
-		$query="SELECT * FROM `tournament_participants` WHERE `group` = '{$age_group}' AND `rink".$rink_no."` = '1' ORDER BY `$_COOKIE[sortby]`,`name`";
-		//displayinfo($query);
-				$res=mysql_query($query);
-				if(mysql_error())displayerror(mysql_error());
-				//displayinfo(mysql_num_rows($res));
-		while($row=mysql_fetch_assoc($res)){
-			$grp=$this->grouptostring($row['group']);
-$html.=<<<HTML
-<div class='participant_div $row[gender] $row[club] $row[group]'>
-<input type='text' disabled class='participant' name='regno' data_id="$row[regno]" value="$row[regno]">
-<input type='text' disabled class='participant' name='name' data_id="$row[regno]" value="$row[name]">
-<input type='text' disabled class='participant' name='club' data_id="$row[regno]" value="$row[club]">
-<input type='text' disabled class='participant' disabled name='group' data_id="$row[regno]" value="$grp">  
-HTML;
-$q="SELECT * FROM `tournament_timer` WHERE `regno` = '{$row['regno']}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
-$q_insert="INSERT INTO `tournament_timer`(`regno`,`group`,`rinkno`) VALUES('{$row['regno']}','{$age_group}','{$rink_no}')";
-$r=mysql_query($q);
-if(mysql_error())displayerror(mysql_error());
 
-if(mysql_num_rows($r)==0)mysql_query($q_insert);
-if(mysql_error())displayerror(mysql_error());
-
-if(mysql_num_rows($r)==0)// now only new data was added
-for($j=1;$j<=5;$j++)
-$html.=<<<HTML
-<input type='text' class='participant' placeholder='timer {$j}' name='timer{$j}' data_id="$row[regno]" value="">
-HTML;
-else
-while($rowvar=mysql_fetch_assoc($r))
-{
-	for($j=1;$j<=5;$j++)
-	{
-	$val=$rowvar['timer'.$j];
-	$val=($val!="59:59:59"?$val:"");
-	$html.="<input type='text' class='participant' placeholder='Timer {$j}' name='timer{$j}' data_id='$row[regno]' value='$val'>";
-	}
-	$val=$rowvar['timeravg'];
-	$val=($val!="59:59:59"?$val:"");
-	$html.="<input type='text' class='participant' placeholder='Timer Average' name='timer{$j}' data_id='$row[regno]' value='$val'>";
-}
-$html.=<<<HTML
-</div>
-HTML;
-}
 		return $html;
 	}
 
