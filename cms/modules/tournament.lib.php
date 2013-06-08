@@ -157,15 +157,142 @@ HTML;
 }
 		return $html;
 	}
+
+
+
+	public function findaverage($a,$b,$c)
+	{
+		//return strtotime('17:14:10','00:00:00');
+		if($b==0 && $c==0)return $a;
+		if($a==0 && $c==0)return $b;
+		if($a==0 && $b==0)return $c;
+		if($a==0)return (($b)+($c))/2;
+		if($b==0)return (($a)+($c))/2;
+		if($c==0)return (($a)+($b))/2;
+		$diff=30;
+		$d1=floor(abs(($a)-($b)));
+		$d2=floor(abs(($b)-($c)));
+		$d3=floor(abs(($c)-($a)));
+	//echo $d1."<br />".$d2."<br />".$d3;
+		if($d1 <= $diff && $d2 <= $diff ) return (($a)+($b)+($c))/3;
+		else if($d1 <= $diff && $d3 <= $diff ) return (($a)+($b)+($c))/3;
+		else if($d2 <= $diff && $d3 <= $diff ) return (($a)+($b)+($c))/3;
+		else if($d1 <= $diff) return (($a)+($b))/2;
+		else if($d2<=$diff)  return (($b)+($c))/2;
+		else if($d3<=$diff)  return (($c)+($a))/2;
+		else return (($a)+($b)+($c))/3;
+	}
+	public function config_value($config_name,$config_val)
+	{
+		$q="SELECT * FROM `tournament_config` WHERE `name` = '$config_name' AND `value` = '$config_val' ";
+		$res=mysql_query($q);
+		return (mysql_num_rows($res)!=0);
+	}
+	public function findPointAverage($t,$cut){
+		$max=-1.0;$min=1000.0;
+		foreach($t as $m)if($m!=9999){if($m > $max)$max=$m;if($m < $min)$min=$m;}
+		$cnt=0;$tot=0.0;
+		if($max==-1 && $min==1000)return 9999;
+		foreach($t as $m)
+		if($m!=9999){
+			$cnt++;
+			$tot+=$m;
+		}
+		if($cut){
+			$cnt-=2;
+			$tot-=$max+$min;
+		}
+		if($cnt>0)
+		return $tot/$cnt;
+		else return 9999;
+	}
 	public function actionEdit() {
 		global $sourceFolder;		global $moduleFolder;
-		if($_POST['update']==1){
+		if(isset($_POST['update']) && $_POST['update']==1){
 			$query=$_POST['query'];//mysql_real_escape_string($_GET['query']);
 			$html="Your update query was ".$query."<br />";
 			mysql_query($query);
 			if(mysql_error())$html.='Has errors '.mysql_error()."<br />";
 			else $html.="Executed successfully"."<br />";
 			return $html;
+		}
+		if(isset($_POST['timer_update'])){
+			$rink_no=$_POST['rinkno'];
+			$age_group=$_POST['agegroup'];
+			$reg_no=$_POST['regno'];
+			$t1=$_POST['timer1'];
+			$t2=$_POST['timer2'];
+			$t3=$_POST['timer3'];/*	$t4=$_POST['timer4']; $t5=$_POST['timer5']; */
+			//$t1=strtotime($t1);	$t2=strtotime($t2);	$t3=strtotime($t3);/*	$t4=strtotime($t4);	$t5=strtotime($t5); */
+			$tt1=explode(':',$t1)[0]*3600+explode(':',$t1)[1]*60+explode(':',$t1)[2];
+			$tt2=explode(':',$t2)[0]*3600+explode(':',$t2)[1]*60+explode(':',$t2)[2];
+			$tt3=explode(':',$t3)[0]*3600+explode(':',$t3)[1]*60+explode(':',$t3)[2];
+			$avg=$this->findaverage($tt1,$tt2,$tt3);
+			$avg=floor($avg/3600).":".floor(($avg%3600)/60).":".floor($avg%60);
+
+			$t1=($t1!=""?$t1:"59:59:59");
+			$t2=($t2!=""?$t2:"59:59:59");
+			$t3=($t3!=""?$t3:"59:59:59");
+			$t4=($t4!=""?$t4:"59:59:59");
+			$t5=($t5!=""?$t5:"59:59:59");
+
+			$q="UPDATE `tournament_timer` SET `timeravg` = '$avg' , `timer1` = '$t1' , `timer2` = '$t2' , `timer3` = '$t3' , `timer4` = '$t4' , `timer5` = '$t5' WHERE `regno` = '{$reg_no}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
+			$html="<div id='timer_update'>".$q."</div>";
+			mysql_query($q);
+			$q="SELECT * FROM `tournament_timer` WHERE `timeravg` != '59:59:59' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `timeravg` ";
+			$i=0;$prev=99991;
+			$html.="<div id='timer_position'>$q</div>";//.$t1." YY ".$t2." YY ".$t3." YY ".strtotime($t1)." XX ".strtotime($t2)." XX ".strtotime($t3)."</div>";
+			$res=mysql_query($q);
+			while($row=mysql_fetch_assoc($res))
+			{	if($prev!=$row['timeravg'])
+				$i++;
+				$prev=$row['timeravg'];
+				$query="UPDATE `tournament_timer` SET `position` = '$i' WHERE `regno` = '$row[regno]'";
+				mysql_query($query);
+				//if($reg_no==$row['regno'])
+				$html.="<div id='timer_position_$row[regno]'>$i</div>";
+			}
+			return $html;			
+		}
+		if(isset($_POST['points_update'])){
+			$rink_no=$_POST['rinkno'];
+			$age_group=$_POST['agegroup'];
+			$reg_no=$_POST['regno'];
+			$t[]=$_POST['point1'];
+			$t[]=$_POST['point2'];
+			$t[]=$_POST['point3'];
+			$t[]=$_POST['point4'];
+			$t[]=$_POST['point5'];	
+
+
+			$t1=($t1!=""?$t1:"9999");
+			$t2=($t2!=""?$t2:"9999");
+			$t3=($t3!=""?$t3:"9999");
+			$t4=($t4!=""?$t4:"9999");
+			$t5=($t5!=""?$t5:"9999");
+			
+			if($this->config_value("rink{$rink_no}_cut_high_low","true"))
+			$avg=$this->findPointAverage($t,1);
+			else
+			$avg=$this->findPointAverage($t,0);
+
+			$q="UPDATE `tournament_points` SET `pointavg` = '$avg' , `point1` = '$t[0]' , `point2` = '$t[1]' , `point3` = '$t[2]' , `point4` = '$t[3]' , `point5` = '$t[4]' WHERE `regno` = '{$reg_no}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
+			$html="<div id='points_update'>".$q."</div>";
+			mysql_query($q);
+			$q="SELECT * FROM `tournament_points` WHERE `pointavg` != '9999' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `pointavg` DESC ";
+			$i=0;$prev="random_string";
+			$html.="<div id='points_position'>$q</div>";
+			$html.="<div id='points_average'>$avg</div>";			
+			$res=mysql_query($q);
+			while($row=mysql_fetch_assoc($res))
+			{	if($prev!=$row['pointavg'])
+				$i++;
+				$prev=$row['pointavg'];
+				$query="UPDATE `tournament_points` SET `position` = '$i' WHERE `regno` = '$row[regno]'";
+				mysql_query($query);
+				$html.="<div id='points_position_$row[regno]'>$i</div>";
+			}
+			return $html;			
 		}
 		$html=<<<HTML
 		<h2> Edit the list </h3>
@@ -241,11 +368,51 @@ HTML;
 }
 		return $html;
 	}
+	public function updateTimerPositions($rink_no,$age_group){
+		$q1="SELECT * FROM `tournament_timer` WHERE `timeravg` != '59:59:59' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `timeravg` ";
+		$i1=0;$prev="random_string";
+		$res1=mysql_query($q1);
+		while($row1=mysql_fetch_assoc($res1))
+		{	if($prev!=$row1['timeravg'])
+			$i1++;
+			$prev=$row1['timeravg'];
+			$query1="UPDATE `tournament_timer` SET `position` = '$i1' WHERE `regno` = '$row1[regno]'";
+			mysql_query($query1);
+			if(mysql_error())displayerror(mysql_error());
+		}
+	}
+	public function updatePointsPositions($rink_no,$age_group){
+		$q1="SELECT * FROM `tournament_points` WHERE `pointavg` != '9999' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `timeravg` DESC";
+		$i1=0;$prev="random_string";
+		$res1=mysql_query($q1);
+		while($row1=mysql_fetch_assoc($res1))
+		{	if($prev!=$row1['pointavg'])
+			$i1++;
+			$prev=$row1['pointavg'];
+			$query1="UPDATE `tournament_points` SET `position` = '$i1' WHERE `regno` = '$row1[regno]'";
+			mysql_query($query1);
+			if(mysql_error())displayerror(mysql_error());
+		}
+	}
 
 	public function actionScoring() {
 		global $sourceFolder;		global $moduleFolder;
 		$html='';
+
+	//`timer1` = '40:40:25' , `timer2` = '40:40:40' , `timer3` = '00:00:00' 		
+		//echo strtotime("22:40:55.555").' X '.strtotime(date("i:s:u",'40:41:40')).' X '.strtotime(date("i:s:u",'0:0:0'));
 		$basefolder=dirname($_SERVER[SCRIPT_NAME]);
+		
+		if(!isset($_COOKIE['rinkno']))$_COOKIE['rinkno']=1;
+		$rink_no=mysql_real_escape_string($_COOKIE['rinkno']);
+		$query="SELECT * FROM `tournament_config` WHERE `name` = 'rink".$rink_no."_type'";
+		$res=mysql_query($query);
+		
+		while($row=mysql_fetch_assoc($res))
+			$type=$row['value'];
+
+
+			
 		$html.=<<<HTML
 		<style>
 		input{width:auto!important;background:white;color:black;size:10;}
@@ -256,6 +423,7 @@ HTML;
 		<script type='text/javascript' src="$basefolder/cms/$moduleFolder/tournament/jquery.cookie.js"></script>
 		<script>
 		$(function(){
+
 			//$("#content").load("$basefolder/cms/$moduleFolder/tournament/tournament_score.php?by=name");
 			var cookie_sort,cookie_age,cookie_rinkno;
 			cookie_sort=$.cookie("sortby"),cookie_age=$.cookie("agegroup"),cookie_rinkno=$.cookie("rinkno");			
@@ -283,7 +451,7 @@ HTML;
 			});
 			$(".timerinput").change(function(){
 				var regno=$(this).attr("data_id");
-				var t1=0,t2=0,t3=0,cnt=0;
+				var tot=0,cnt=0,curr=$(this).parent();
 				$(".timer"+regno+".timerinput").each(function(){
 				var timeValue = $(this).attr("value")+"",sHours,sMinutes,sSec;
 				   //alert(timeValue + ' ' + timeValue == "");
@@ -311,17 +479,17 @@ HTML;
 				        else if(parseInt(sHours) == 0)
 				            sHours = "00";
 				        else if (sHours <10)
-				            sHours = "0"+sHours;
+				            sHours = "0"+parseInt(sHours);
 
 				        if(sMinutes == "" || isNaN(sMinutes) || parseInt(sMinutes)>59)
 				        {
-				            alert("Invalid Sec format");
+				            alert("Invalid Sec format");				            
 				            flag=0;
 				        }
 				        else if(parseInt(sMinutes) == 0)
 				            sMinutes = "00";
 				        else if (sMinutes <10)
-				            sMinutes = "0"+sMinutes;    
+				            sMinutes = "0"+parseInt(sMinutes);    
 				        if(sSec == "" || isNaN(sSec) || parseInt(sSec)>59)
 				        {
 				            alert("Invalid MilliSec format"+sSec);
@@ -330,14 +498,147 @@ HTML;
 				        else if(parseInt(sSec) == 0)
 				            sSec = "00";
 				        else if (sSec <10)
-				            sSec = "0"+sSec;        
+				            sSec = "0"+parseInt(sSec);        
 				        $(this).attr("value",sHours + ":" + sMinutes + ":" + sSec);        
-				        if(flag){cnt++;t1+=parseInt(sHours);t2+=parseInt(sMinutes);t3+=parseInt(sSec);}
+				        if(flag){cnt++;
+				        	$(this).css("border","2px solid rgb(9,156,9)");
+				        	var this_inp=$(this),temptotal;
+				        	setTimeout(function(){this_inp.css("border","1px solid grey");},1000);
+				        //	t1+=parseInt(sHours);t2+=parseInt(sMinutes);t3+=parseInt(sSec);
+				        	temptotal=parseInt(sSec)+parseInt(sMinutes)*60+parseInt(sHours)*3600;
+							tot+=temptotal;
+							//alert(temptotal);
+							if(temptotal==0)cnt--;
+					        	
+				        	$.ajax({
+				        		type:'POST',
+				        		url:"./+edit",
+				        		data:
+				        	{
+				        		timer_update:"1",
+				        		regno:regno,
+				        		agegroup:curr.find(".agegroup_input").attr("data_group"),
+				        		rinkno:cookie_rinkno,
+				        		timer1:($(".timer"+regno+".timerinput")[0].value==""?"59:59:59":$(".timer"+regno+".timerinput")[0].value),
+				        		timer2:($(".timer"+regno+".timerinput")[1].value==""?"59:59:59":$(".timer"+regno+".timerinput")[1].value),
+				        		timer3:($(".timer"+regno+".timerinput")[2].value==""?"59:59:59":$(".timer"+regno+".timerinput")[2].value),
+				        		timer4:($(".timer"+regno+".timerinput")[3].value==""?"59:59:59":$(".timer"+regno+".timerinput")[3].value),
+				        		timer5:($(".timer"+regno+".timerinput")[4].value==""?"59:59:59":$(".timer"+regno+".timerinput")[4].value)
+				        	},success:function(msg){
+				        		
+				        		//alert($("#timer_update",msg).html());
+				        		/*
+				        		var position=$("#timer_position",msg).html();
+				        		curr.find(".position").attr("value",position);
+				        		*/
+				        		
+				        		$(".participant.position").each(function(){
+				        			var this_regno=$(this).attr("data_regno");
+				        			var this_posn=$("#timer_position_"+this_regno,msg).html();
+				        			$(this).attr("value",this_posn);
+				        		});
+
+								curr.animate({background:"rgb(50,150,50)"},100);
+								curr.css("background","rgb(50,150,50)");
+								setTimeout(function(){curr.animate({background:"transparent"},100);},1000);
+								setTimeout(function(){curr.css("background","transparent");},1000);
+							},error: function (xhr, ajaxOptions, thrownError) {
+						           //alert(xhr.status);
+						           //alert(xhr.responseText);
+						           //alert(thrownError);
+								curr.animate({background:"rgb(150,50,50)"},100);
+								curr.css("background","rgb(150,50,50)");
+								setTimeout(function(){curr.animate({background:"transparent"},100);},1000);
+								setTimeout(function(){curr.css("background","transparent");},1000);
+						       }
+							});
+							
+
+				        }
+				        else $(this).css("border","2px solid rgb(156,9,9)");
 				    }	
 				});
-				var avg=parseInt(parseInt(t1)/cnt)+":"+parseInt(parseInt(t2)/cnt)+":"+parseInt(parseInt(t3)/cnt);
+				var avg=parseInt(parseInt(tot/cnt)/3600)+":"+parseInt((parseInt(tot/cnt)%3600)/60)+":"+parseInt(parseInt(tot/cnt)%60);
 				$(".timer"+regno+".timeraverage").attr("value",avg);
+				//alert(avg);
 			});
+/*  POINTS CODE */
+			$(".pointinput").change(function(){
+				var regno=$(this).attr("data_id");
+				var tot=0.00,cnt=0,curr=$(this).parent();
+				$(".point"+regno+".pointinput").each(function(){
+				var Value = parseFloat($(this).attr("value"));
+				   
+				    if(Value == "")
+				    {
+				    	//alert(timeValue.indexOf(":")<0 + ' ' + timeValue.indexOf(":"));
+				    }
+				    else
+				    {
+				    	var flag=1;
+				    	if(Value == 9999.00)flag=0;
+				        if(flag){cnt++;
+				        	$(this).css("border","2px solid rgb(9,156,9)");
+				        	var this_inp=$(this),temptotal;
+				        	setTimeout(function(){this_inp.css("border","1px solid grey");},1000);				        
+							tot+=Value;
+							//if(temptotal==0)cnt--;
+					        	
+				        	$.ajax({
+				        		type:'POST',
+				        		url:"./+edit",
+				        		data:
+				        	{
+				        		points_update:"1",
+				        		regno:regno,
+				        		agegroup:curr.find(".agegroup_input").attr("data_group"),
+				        		rinkno:cookie_rinkno,
+				        		point1:($(".point"+regno+".pointinput")[0].value==""?9999:$(".point"+regno+".pointinput")[0].value),
+				        		point2:($(".point"+regno+".pointinput")[1].value==""?9999:$(".point"+regno+".pointinput")[1].value),
+				        		point3:($(".point"+regno+".pointinput")[2].value==""?9999:$(".point"+regno+".pointinput")[2].value),
+				        		point4:($(".point"+regno+".pointinput")[3].value==""?9999:$(".point"+regno+".pointinput")[3].value),
+				        		point5:($(".point"+regno+".pointinput")[4].value==""?9999:$(".point"+regno+".pointinput")[4].value)
+				        	},success:function(msg){
+				        		
+				        		//alert($("#points_average",msg).html());
+				        		/*
+				        		var position=$("#timer_position",msg).html();
+				        		curr.find(".position").attr("value",position);
+				        		*/
+				        		//alert(msg);
+				        		$(".point"+regno+".pointaverage").attr("value",$("#points_average",msg).html());
+				        		$(".participant.position").each(function(){
+				        			var this_regno=$(this).attr("data_regno");
+				        			var this_posn=$("#points_position_"+this_regno,msg).html();
+				        			$(this).attr("value",this_posn);
+				  	      		});
+
+								curr.animate({background:"rgb(50,150,50)"},100);
+								curr.css("background","rgb(50,150,50)");
+								setTimeout(function(){curr.animate({background:"transparent"},100);},1000);
+								setTimeout(function(){curr.css("background","transparent");},1000);
+							},error: function (xhr, ajaxOptions, thrownError) {
+						           //alert(xhr.status);
+						           //alert(xhr.responseText);
+						           //alert(thrownError);
+								curr.animate({background:"rgb(150,50,50)"},100);
+								curr.css("background","rgb(150,50,50)");
+								setTimeout(function(){curr.animate({background:"transparent"},100);},1000);
+								setTimeout(function(){curr.css("background","transparent");},1000);
+						       }
+							});
+							
+
+				        }
+				        else $(this).css("border","2px solid rgb(156,9,9)");
+				    }	
+				});
+				var avg=parseFloat(tot/cnt);
+				//$(".point"+regno+".pointaverage").attr("value",avg);
+				//alert(avg);
+			});
+
+
 		});
 		</script><h3>Sort By :</h3>
 		Name <input type='radio' class='sortby' name='order' value='name'>&nbsp;&nbsp;&nbsp;&nbsp;
@@ -371,8 +672,16 @@ HTML;
 		$query="SELECT * FROM `tournament_participants` WHERE `group` = '{$age_group}' AND `rink".$rink_no."` = '1' ORDER BY `$_COOKIE[sortby]`,`name`";
 		//displayinfo($query);
 				$res=mysql_query($query);
-				if(mysql_error())displayerror(mysql_error());
+				if(mysql_error())displayerror(mysql_error()." for query ".$query);
 				//displayinfo(mysql_num_rows($res));
+if($type=="timer")
+$this->updateTimerPositions($rink_no,$age_group);
+if($type=="points")
+{
+	$this->updatePointsPositions($rink_no,$age_group);
+	$html.="<div id='max_min' style=\"position:absolute;right:300px;top:200px\">MAXIMUM and MINIMUM Points are ".($this->config_value("rink{$rink_no}_cut_high_low","true")?"CUT":"")."</div>";
+}	
+
 		while($row=mysql_fetch_assoc($res)){
 			$grp=$this->grouptostring($row['group']);
 $html.=<<<HTML
@@ -380,8 +689,10 @@ $html.=<<<HTML
 <input type='text' disabled class='participant' name='regno' data_id="$row[regno]" value="$row[regno]">
 <input type='text' disabled class='participant' name='name' data_id="$row[regno]" value="$row[name]">
 <input type='text' disabled class='participant' name='club' data_id="$row[regno]" value="$row[club]">
-<input type='text' disabled class='participant' disabled name='group' data_id="$row[regno]" value="$grp">  
+<input type='text' disabled class='participant agegroup_input' data_group="$row[group]" disabled name='group' data_id="$row[regno]" value="$grp">  
 HTML;
+		if($type=="timer")
+	{
 $q="SELECT * FROM `tournament_timer` WHERE `regno` = '{$row['regno']}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
 $q_insert="INSERT INTO `tournament_timer`(`regno`,`group`,`rinkno`) VALUES('{$row['regno']}','{$age_group}','{$rink_no}')";
 $r=mysql_query($q);
@@ -393,9 +704,10 @@ if(mysql_error())displayerror(mysql_error());
 if(mysql_num_rows($r)==0)// now only new data was added
 {for($j=1;$j<=5;$j++)
 $html.=<<<HTML
-<input type='text' class='participant timerinput' placeholder='timer {$j}' name='timer{$j}' data_id="$row[regno]" value="">
+<input type='text' class='participant timer$row[regno] timerinput' placeholder='Timer {$j}' name='timer{$j}' data_id="$row[regno]" value="">
 HTML;
-$html.="<input type='text' disabled class='participant timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' value=''>";
+$html.="<input type='text' disabled class='participant timer$row[regno] timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' value=''>";
+$html.="<input type='text' placeholder='Position' disabled class='participant timer$row[regno] position' name='position' data_regno='$row[regno]' data_id='0' value=''>";
 }
 else
 while($rowvar=mysql_fetch_assoc($r))
@@ -409,11 +721,60 @@ while($rowvar=mysql_fetch_assoc($r))
 	$val=$rowvar['timeravg']; 
 	$val=($val!="59:59:59"?$val:"");
 	$html.="<input type='text' disabled class='participant timer$row[regno] timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' value='$val'>";
+$posn=($rowvar[position]!="0"?$rowvar[position]:"");
+$html.="<input type='text' placeholder='Position' disabled class='participant timer$row[regno] position' name='position' data_regno='$row[regno]' data_id='$rowvar[position]' value='$posn'>";
 }
+
 $html.=<<<HTML
 </div>
 HTML;
+
+}	// TYPE TIMER;
+else 		if($type=="points")
+	{
+$q="SELECT * FROM `tournament_points` WHERE `regno` = '{$row['regno']}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
+$q_insert="INSERT INTO `tournament_points`(`regno`,`group`,`rinkno`) VALUES('{$row['regno']}','{$age_group}','{$rink_no}')";
+$r=mysql_query($q);
+if(mysql_error())displayerror(mysql_error());
+
+if(mysql_num_rows($r)==0)mysql_query($q_insert);
+if(mysql_error())displayerror(mysql_error());
+
+if(mysql_num_rows($r)==0)// now only new data was added
+{for($j=1;$j<=5;$j++)
+$html.=<<<HTML
+<input type='text' class='participant point$row[regno] pointinput' placeholder='Point {$j}' name='point{$j}' data_id="$row[regno]" value="">
+HTML;
+$html.="<input type='text' disabled class='participant point$row[regno] pointaverage' placeholder='Average Points' name='pointavg' data_id='$row[regno]' value=''>";
+$html.="<input type='text' placeholder='Position' disabled class='participant point$row[regno] position' name='position' data_regno='$row[regno]' data_id='0' value=''>";
 }
+else
+while($rowvar=mysql_fetch_assoc($r))
+{
+	for($j=1;$j<=5;$j++)
+	{
+	$val=$rowvar['point'.$j];
+	$val=($val!="9999"?$val:"");
+	$html.="<input type='text' class='participant point$row[regno] pointinput' placeholder='Point {$j}' name='point{$j}' data_id='$row[regno]' value='$val'>";
+	}
+	$val=$rowvar['pointavg']; 
+	$val=($val!="9999"?$val:"");
+	$html.="<input type='text' disabled class='participant point$row[regno] pointaverage' placeholder='Average Points' name='pointavg' data_id='$row[regno]' value='$val'>";
+$posn=($rowvar[position]!="0"?$rowvar[position]:"");
+$html.="<input type='text' placeholder='Position' disabled class='participant point$row[regno] position' name='position' data_regno='$row[regno]' data_id='$rowvar[position]' value='$posn'>";
+}
+
+$html.=<<<HTML
+</div>
+HTML;
+
+}	// TYPE POINTS;
+
+
+	}
+
+
+//Note : close </div> for the class participant in each case of rink type
 		return $html;
 	}
 
