@@ -223,7 +223,6 @@ HTML;
 			$t1=$_POST['timer1'];
 			$t2=$_POST['timer2'];
 			$t3=$_POST['timer3'];/*	$t4=$_POST['timer4']; $t5=$_POST['timer5']; */
-			//$t1=strtotime($t1);	$t2=strtotime($t2);	$t3=strtotime($t3);/*	$t4=strtotime($t4);	$t5=strtotime($t5); */
 			$tt1=explode(':',$t1)[0]*3600+explode(':',$t1)[1]*60+explode(':',$t1)[2];
 			$tt2=explode(':',$t2)[0]*3600+explode(':',$t2)[1]*60+explode(':',$t2)[2];
 			$tt3=explode(':',$t3)[0]*3600+explode(':',$t3)[1]*60+explode(':',$t3)[2];
