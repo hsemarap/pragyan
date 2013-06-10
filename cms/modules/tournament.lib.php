@@ -73,14 +73,259 @@ require_once("$sourceFolder/$moduleFolder/quickregister/viewregistrants.php");
 			return $this->actionScoring().$footer;
 		if($this->action=="config")
 			return $this->actionConfig().$footer;
-/*		
-		if($this->action=="ageedit")
-			return $this->actionAgeedit().$footer;			
-		if($this->action=="genderedit")
-			return $this->actionGenderedit().$footer;			
-		if($this->action=="clubedit")
-			return $this->actionClubedit().$footer;			
-*/
+		if($this->action=="result")
+			return $this->actionResult().$footer;
+	}
+	public function actionResult(){
+		global $sourceFolder, $moduleFolder;
+		$html="<h2><a href='./+result'>Results Page</a></h2><p align='center'><a href='./+result&club=1'>CLUB Resuts</a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='./+result&individual=1'>Individual Resuts</a></p>";
+		$query="SELECT DISTINCT `group` FROM `tournament_participants`";
+		$groups=array();
+		$res=mysql_query($query);
+		while($row=mysql_fetch_assoc($res))$groups[]=$row['group'];
+		$query="SELECT DISTINCT `club` FROM `tournament_participants`";
+		$clubs=array();
+		$res=mysql_query($query);
+		while($row=mysql_fetch_assoc($res))$clubs[]=$row['club'];
+		$query="SELECT DISTINCT `gender` FROM `tournament_participants`";
+		$genders=array();
+		$res=mysql_query($query);
+		while($row=mysql_fetch_assoc($res))$genders[]=$row['gender'];
+		$query="SELECT * FROM information_schema.columns WHERE table_name =  'tournament_participants' AND column_name LIKE  'rink%'";
+		$rinks=array();
+		$res=mysql_query($query);
+		while($row=mysql_fetch_assoc($res))$rinks[]=$row['COLUMN_NAME'];
+
+		if(isset($_GET['club']))
+		{
+			foreach($clubs as $club)
+			{
+				$html.="<h4>For CLUB : $club</h4>
+				<h4>No of <span style='color:gold'>Golds</span> : <span style='color:gold' id='golds_$club'></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+				No of <span style='color:grey'>Silvers</span> : <span style='color:grey' id='silvers_$club'></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+				No of <span style='color:#8C7853'>Bronzes</span> : <span style='color:#8C7853' id='bronzes_$club'></span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+				Total Points : <span style='color:rgb(156,9,9);' id='total_$club'></span>
+				</h4>
+				";
+				$totpoints=0;
+				$positions=array("1"=>0,"2"=>0,"3"=>0); // array of no of gold,silver,bronze;
+		foreach($groups as $grp)
+		{
+			$html.="Age Group ".$this->grouptostring($grp)."<br /><br />";
+		foreach($rinks as $rink)
+		{
+			$qq="SELECT `value` FROM `tournament_config` WHERE `name` = '".$rink."_type'";
+			$rr=mysql_query($qq);
+			$rrr=(mysql_fetch_assoc($rr));
+			$eventtype=$rrr['value'];
+
+			$qq="SELECT * FROM `tournament_$eventtype` WHERE `rinkno` = '".substr($rink,4)."' AND `group` = '$grp' ";
+			$rr=mysql_query($qq);
+			//displayinfo($qq);
+			if(mysql_num_rows($rr)>0)
+		{
+			$html.="EVENT : ".$rink."<br />";
+		//foreach($genders as $gen)
+		{
+		//	$html.=$gen."<br />";
+			$q="SELECT * FROM `tournament_participants` WHERE `group` = '$grp' AND `$rink` = '1'  AND `club` = '$club' ORDER BY `gender` DESC, `name` ";
+			$res=mysql_query($q);
+			$html.="<table><tr><th>Register NO</th><th>Name</th><th>AgeGroup</th><th>Gender</th><th>Place</th><th>Points</th></tr>";
+			while($row=mysql_fetch_assoc($res))
+			{
+			$regno=$row['regno'];$name=$row['name'];$agegroup=$this->grouptostring($row['group']);
+			$gender=$row['gender'];
+			$this->updateTimerPositions(substr($rink,4),$agegroup,$gender);
+			$this->updatePointsPositions(substr($rink,4),$agegroup,$gender);
+			
+/*COMMENT THIS AFTER DOING HEATS */
+			if($eventtype!='heats')
+		{
+			$qq="SELECT `position` FROM `tournament_$eventtype` WHERE `rinkno` = '".substr($rink,4)."' AND `regid` = '$row[id]'";
+			$rr=mysql_query($qq);
+			//displayinfo($qq);
+			while($rrr=mysql_fetch_assoc($rr))
+			$position=$rrr['position'];			
+			$position=($position>0?$position:"Not Performed");
+			if($position!="Not Performed" && $position < 4 )
+			$positions["$position"]++; 
+
+			$points=$this->getpoints($group,$gender,$position,substr($rink,4));
+			if($points!="")$totpoints+=$points;
+
+			$html.="<tr><td>$regno</td><td>$name</td><td>$agegroup</td><td>$gender</td><td>$position</td><td>$points</td></tr>";
+		}
+			}
+			$html.="</table>";
+		}
+		}
+		}
+		}		
+
+			$html.="<script>
+			$(function(){
+				$('#golds_$club').html($positions[1]+' ');
+				$('#silvers_$club').html($positions[2]+' ');
+				$('#bronzes_$club').html($positions[3]+' ');
+				$('#total_$club').html($totpoints+'');
+			});
+			</script>";
+
+
+			}
+
+		}
+		else if(isset($_GET['individual']))
+					{
+	
+	$query_1="SELECT * FROM `tournament_participants` ORDER BY `group`,`gender`,`name` ";
+	$res_1=mysql_query($query_1);
+	$html.="<table><tr><th>Name</th><th>AgeGroup</th><th>Golds</th><th>Silvers</th><th>Bronzes</th><th>Total</th><th>Medal Tally</th></tr>";
+	while($r1=mysql_fetch_assoc($res_1))
+	{						
+		//		foreach($clubs as $club)
+			{
+				$name=$r1['name'];
+				$regno=$r1['regno'];
+				$id=$r1['id'];
+				$gender=$r1['gender'];
+				$agegroup=$r1['group'];
+				$html.="<tr><td><b>$name</b></td><td>".$this->grouptostring($agegroup)."</td>
+				<td><b><span style='color:gold'>Golds</span> : <span style='color:gold' id='golds_$id'></span></td>
+				<td><span style='color:grey'>Silvers</span> : <span style='color:grey' id='silvers_$id'></span></td>
+				<td><span style='color:#8C7853'>Bronzes</span> : <span style='color:#8C7853' id='bronzes_$id'></span></td>
+				<td>Total Points : <span style='color:rgb(156,9,9);' id='total_$id'></span></td>
+				</b>
+				";
+				$totpoints=0;
+				$grp=$agegroup;
+				$colors=array("","<span style='color:gold'>Gold</span>","<span style='color:grey'>Silver</span>","<span style='color:#8C7853'>Bronze</span>");
+				$rinkpos=array();
+				$positions=array("1"=>0,"2"=>0,"3"=>0); // array of no of gold,silver,bronze;
+			
+		foreach($rinks as $rink)
+		{
+			$qq="SELECT `value` FROM `tournament_config` WHERE `name` = '".$rink."_type'";
+			$rr=mysql_query($qq);
+			$rrr=(mysql_fetch_assoc($rr));
+			$eventtype=$rrr['value'];
+
+			$qq="SELECT * FROM `tournament_$eventtype` WHERE `rinkno` = '".substr($rink,4)."' AND `group` = '$grp' AND `regid` = '$id' ";
+			$rr=mysql_query($qq);
+			//displayinfo($qq);
+			if(mysql_num_rows($rr)>0)
+		{
+			$this->updateTimerPositions(substr($rink,4),$agegroup,$gender);
+			$this->updatePointsPositions(substr($rink,4),$agegroup,$gender);			
+/*COMMENT THIS AFTER DOING HEATS */
+			if($eventtype!='heats')
+		{
+			$qq="SELECT `position` FROM `tournament_$eventtype` WHERE `rinkno` = '".substr($rink,4)."' AND `regid` = '$id'";
+			$rr=mysql_query($qq);
+
+			while($rrr=mysql_fetch_assoc($rr))
+			$position=$rrr['position'];	
+			
+			$position=($position>0?$position:"Not Performed");
+			if($position!="Not Performed" && $position < 4 )
+			{$positions["$position"]++; 
+			 $rinkpos["$rink"]=$colors[$position];
+			}
+			$points=$this->getpoints($group,$gender,$position,substr($rink,4));
+			if($points!="")$totpoints+=$points;
+//			$html.="<tr><td>$regno</td><td>$name</td><td>$agegroup</td><td>$gender</td><td>$position</td><td>$points</td></tr>";
+		}
+		}
+		}
+			$html.="<td>";
+			foreach($rinkpos as $key=>$val)$html.="$key $val&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+			$html.="</td></tr>";
+			//$html.="<br /><br />";
+			$html.="<script>
+			$(function(){
+				$('#golds_$id').html($positions[1]+' ');
+				$('#silvers_$id').html($positions[2]+' ');
+				$('#bronzes_$id').html($positions[3]+' ');
+				$('#total_$id').html($totpoints+'');
+			});
+			</script>";
+
+
+			}
+
+		}
+		$html.="</table>";
+	}
+
+
+
+
+
+
+
+		if(!isset($_GET["club"]) && !isset($_GET["individual"]))
+		foreach($groups as $grp)
+		{
+			$html.="Age Group ".$this->grouptostring($grp)."<br /><br />";
+		foreach($rinks as $rink)
+		{
+			$qq="SELECT `value` FROM `tournament_config` WHERE `name` = '".$rink."_type'";
+			$rr=mysql_query($qq);
+			$rrr=(mysql_fetch_assoc($rr));
+			$eventtype=$rrr['value'];
+
+			$qq="SELECT * FROM `tournament_$eventtype` WHERE `rinkno` = '".substr($rink,4)."' AND `group` = '$grp' ";
+			$rr=mysql_query($qq);
+			//displayinfo($qq);
+			if(mysql_num_rows($rr)>0)
+		{
+			$html.="EVENT : ".$rink."<br />";
+		//foreach($genders as $gen)
+		{
+		//	$html.=$gen."<br />";
+			$q="SELECT * FROM `tournament_participants` WHERE `group` = '$grp' AND `$rink` = '1' ORDER BY `gender` DESC, `name` ";
+			$res=mysql_query($q);
+			$html.="<table><tr><th>Register NO</th><th>Name</th><th>AgeGroup</th><th>Gender</th><th>Place</th><th>Points</th></tr>";
+			while($row=mysql_fetch_assoc($res))
+			{
+			$regno=$row['regno'];$name=$row['name'];$agegroup=$this->grouptostring($row['group']);
+			$gender=$row['gender'];
+			$this->updateTimerPositions(substr($rink,4),$agegroup,$gender);
+			$this->updatePointsPositions(substr($rink,4),$agegroup,$gender);
+			
+/*COMMENT THIS AFTER DOING HEATS */
+			if($eventtype!='heats')
+		{
+			$qq="SELECT `position` FROM `tournament_$eventtype` WHERE `rinkno` = '".substr($rink,4)."' AND `regid` = '$row[id]'";
+			$rr=mysql_query($qq);
+			//displayinfo($qq);
+			while($rrr=mysql_fetch_assoc($rr))
+			$position=$rrr['position'];			
+			$position=($position>0?$position:"Not Performed");
+			$points=$this->getpoints($group,$gender,$position,substr($rink,4));
+			
+			$html.="<tr><td>$regno</td><td>$name</td><td>$agegroup</td><td>$gender</td><td>$position</td><td>$points</td></tr>";
+		}
+			}
+			$html.="</table>";
+		}
+		}
+		}
+		}
+		return $html;
+	}
+	public function getpoints($grp,$gender,$position,$rinkno)
+	{
+		// Modify if points change for group and gender wise.
+		if($position<1 || $position>3)return "";
+		return $this->getconfig("rink".$rinkno."_points_".$position);
+	}
+	public function getconfig($name)
+	{
+		$qq="SELECT `value` FROM `tournament_config` WHERE `name` = '$name' ";
+		$rr=mysql_query($qq);
+		while($row=mysql_fetch_assoc($rr))$ans=$row['value'];
+		return $ans;
 	}
 	public function actionConfig()
 	{
@@ -385,8 +630,10 @@ HTML;
 		}
 		if(isset($_POST['timer_update'])){
 			$rink_no=$_POST['rinkno'];
+			$gender=$_POST['gender'];
 			$age_group=$_POST['agegroup'];
 			$reg_no=$_POST['regno'];
+			$regid=$_POST['regid'];
 			$t1=$_POST['timer1'];
 			$t2=$_POST['timer2'];
 			$t3=$_POST['timer3'];/*	$t4=$_POST['timer4']; $t5=$_POST['timer5']; */
@@ -402,7 +649,7 @@ HTML;
 			$t4=($t4!=""?$t4:"59:59:59");
 			$t5=($t5!=""?$t5:"59:59:59");
 
-			$q="UPDATE `tournament_timer` SET `timeravg` = '$avg' , `timer1` = '$t1' , `timer2` = '$t2' , `timer3` = '$t3' , `timer4` = '$t4' , `timer5` = '$t5' WHERE `regno` = '{$reg_no}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
+			$q="UPDATE `tournament_timer` SET `timeravg` = '$avg' , `timer1` = '$t1' , `timer2` = '$t2' , `timer3` = '$t3' , `timer4` = '$t4' , `timer5` = '$t5' WHERE `regid` = '{$regid}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
 			$html="<div id='timer_update'>".$q."</div>";
 			mysql_query($q);
 			$q="SELECT * FROM `tournament_timer` WHERE `timeravg` != '59:59:59' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `timeravg` ";
@@ -410,13 +657,19 @@ HTML;
 			$html.="<div id='timer_position'>$q</div>";//.$t1." YY ".$t2." YY ".$t3." YY ".strtotime($t1)." XX ".strtotime($t2)." XX ".strtotime($t3)."</div>";
 			$res=mysql_query($q);
 			while($row=mysql_fetch_assoc($res))
+			{
+			$query_gender="SELECT * FROM `tournament_participants` WHERE `id` = '$row[regid]'";
+			$res_gender=mysql_query($query_gender);
+			while($row_gender=mysql_fetch_assoc($res_gender))$thisgender=$row_gender['gender'];
+			if($thisgender==$gender)
 			{	if($prev!=$row['timeravg'])
 				$i++;
 				$prev=$row['timeravg'];
-				$query="UPDATE `tournament_timer` SET `position` = '$i' WHERE `regno` = '$row[regno]'";
+				$query="UPDATE `tournament_timer` SET `position` = '$i' WHERE `regid` = '$row[regid]'";
 				mysql_query($query);
 				//if($reg_no==$row['regno'])
-				$html.="<div id='timer_position_$row[regno]'>$i</div>";
+				$html.="<div id='timer_position_$row[regid]'>$i</div>";
+			}
 			}
 			return $html;			
 		}
@@ -434,12 +687,13 @@ HTML;
 			$rink_no=mysql_real_escape_string($_POST['rinkno']);
 			$age_group=mysql_real_escape_string($_POST['agegroup']);
 			$reg_no=mysql_real_escape_string($_POST['regno']);
+			$gender=mysql_real_escape_string($_POST['gender']);
 			$t[]=mysql_real_escape_string($_POST['point1']);
 			$t[]=mysql_real_escape_string($_POST['point2']);
 			$t[]=mysql_real_escape_string($_POST['point3']);
 			$t[]=mysql_real_escape_string($_POST['point4']);
 			$t[]=mysql_real_escape_string($_POST['point5']);	
-
+			$regid=mysql_real_escape_string($_POST['regid']);
 			$t1=($t1!=""?$t1:"9999");
 			$t2=($t2!=""?$t2:"9999");
 			$t3=($t3!=""?$t3:"9999");
@@ -477,23 +731,29 @@ HTML;
 			$altquery=", `alt_pointavg` = '$avg2' , `alt_point1` = '$tt[0]' , `alt_point2` = '$tt[1]' , `alt_point3` = '$tt[2]' , `alt_point4` = '$tt[3]' , `alt_point5` = '$tt[4]' ";	
 			}
 			$total=($avg+$avg2);
-			$q="UPDATE `tournament_points` SET `total` = '".$total."' ,`pointavg` = '$avg' , `point1` = '$t[0]' , `point2` = '$t[1]' , `point3` = '$t[2]' , `point4` = '$t[3]' , `point5` = '$t[4]' $altquery WHERE `regno` = '{$reg_no}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
+			$q="UPDATE `tournament_points` SET `total` = '".$total."' ,`pointavg` = '$avg' , `point1` = '$t[0]' , `point2` = '$t[1]' , `point3` = '$t[2]' , `point4` = '$t[3]' , `point5` = '$t[4]' $altquery WHERE `regid` = '{$regid}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
 			$html="<div id='points_update'>".$q."</div>";
 			$html="<div id='points_total'>$total</div>";
 			mysql_query($q);
-			$q="SELECT * FROM `tournament_points` WHERE `total` != '9999' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `total` DESC ";
+			$q="SELECT * FROM `tournament_points` WHERE `total` != '9999' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `total` DESC ";-
 			$i=0;$prev="random_string";
 			$html.="<div id='points_position'>$q</div>";
 			$html.="<div id='points_average'>$avg</div>";			
 			$html.="<div id='points_altaverage'>$avg2</div>";			
 			$res=mysql_query($q);
 			while($row=mysql_fetch_assoc($res))
+			{
+			$query_gender="SELECT * FROM `tournament_participants` WHERE `id` = '$row[regid]'";
+			$res_gender=mysql_query($query_gender);
+			while($row_gender=mysql_fetch_assoc($res_gender))$thisgender=$row_gender['gender'];
+			if($thisgender==$gender)
 			{	if($prev!=$row['total'])
 				$i++;
 				$prev=$row['total'];
-				$query="UPDATE `tournament_points` SET `position` = '$i' WHERE `regno` = '$row[regno]'";
+				$query="UPDATE `tournament_points` SET `position` = '$i' WHERE `regid` = '$row[regid]'";
 				mysql_query($query);
-				$html.="<div id='points_position_$row[regno]'>$i</div>";
+				$html.="<div id='points_position_$row[regid]'>$i</div>";
+			}
 			}
 			return $html;			
 		}
@@ -655,30 +915,42 @@ HTML;
 }
 		return $html;
 	}
-	public function updateTimerPositions($rink_no,$age_group){
+	public function updateTimerPositions($rink_no,$age_group,$gender){
 		$q1="SELECT * FROM `tournament_timer` WHERE `timeravg` != '59:59:59' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `timeravg` ";
 		$i1=0;$prev="random_string";
 		$res1=mysql_query($q1);
 		while($row1=mysql_fetch_assoc($res1))
+		{
+		$query_gender="SELECT * FROM `tournament_participants` WHERE `id` = '$row[regid]'";
+			$res_gender=mysql_query($query_gender);
+			while($row_gender=mysql_fetch_assoc($res_gender))$thisgender=$row_gender['gender'];
+			if($thisgender==$gender)			
 		{	if($prev!=$row1['timeravg'])
 			$i1++;
 			$prev=$row1['timeravg'];
-			$query1="UPDATE `tournament_timer` SET `position` = '$i1' WHERE `regno` = '$row1[regno]'";
+			$query1="UPDATE `tournament_timer` SET `position` = '$i1' WHERE `regid` = '$row1[regid]'";
 			mysql_query($query1);
 			if(mysql_error())displayerror(mysql_error());
 		}
+		}
 	}
-	public function updatePointsPositions($rink_no,$age_group){
+	public function updatePointsPositions($rink_no,$age_group,$gender){
 		$q1="SELECT * FROM `tournament_points` WHERE `total` != '9999' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}' ORDER BY `total` DESC";
 		$i1=0;$prev="random_string";
 		$res1=mysql_query($q1);
 		while($row1=mysql_fetch_assoc($res1))
+		{
+		$query_gender="SELECT * FROM `tournament_participants` WHERE `id` = '$row[regid]'";
+			$res_gender=mysql_query($query_gender);
+			while($row_gender=mysql_fetch_assoc($res_gender))$thisgender=$row_gender['gender'];
+			if($thisgender==$gender)			
 		{	if($prev!=$row1['total'])
 			$i1++;
 			$prev=$row1['total'];
-			$query1="UPDATE `tournament_points` SET `position` = '$i1' WHERE `regno` = '$row1[regno]'";
+			$query1="UPDATE `tournament_points` SET `position` = '$i1' WHERE `regid` = '$row1[regid]'";
 			mysql_query($query1);
 			if(mysql_error())displayerror(mysql_error());
+		}
 		}
 	}
 
@@ -712,14 +984,16 @@ HTML;
 		$(function(){
 
 			//$("#content").load("$basefolder/cms/$moduleFolder/tournament/tournament_score.php?by=name");
-			var cookie_sort,cookie_age,cookie_rinkno;
-			cookie_sort=$.cookie("sortby"),cookie_age=$.cookie("agegroup"),cookie_rinkno=$.cookie("rinkno");			
+			var cookie_sort,cookie_age,cookie_rinkno,cookie_gender;
+			cookie_sort=$.cookie("sortby"),cookie_age=$.cookie("agegroup"),cookie_gender=$.cookie("gender"),cookie_rinkno=$.cookie("rinkno");			
 			if(cookie_sort==undefined)$.cookie("sortby","name");
 			if(cookie_age==undefined)$.cookie("agegroup","06");
+			if(cookie_gender==undefined)$.cookie("gender","male");
 			if(cookie_rinkno==undefined)$.cookie("rinkno","1");
-			cookie_sort=$.cookie("sortby"),cookie_age=$.cookie("agegroup"),cookie_rinkno=$.cookie("rinkno");			
+			cookie_sort=$.cookie("sortby"),cookie_age=$.cookie("agegroup"),cookie_rinkno=$.cookie("rinkno");cookie_gender=$.cookie("gender");			
 			$(".sortby").each(function(){if(cookie_sort==$(this).attr("value"))$(this).attr("checked","1");});
 			$(".agegroup > option").each(function(){if(cookie_age==$(this).attr("value"))$(this).attr("selected","true");});
+			$(".gender_selection > option").each(function(){if(cookie_gender==$(this).attr("value"))$(this).attr("selected","true");});
 			$(".rinkno > option").each(function(){if(cookie_rinkno==$(this).attr("value"))$(this).attr("selected","true");});
 			$(".sortby").change(function(){
 				$.cookie("sortby",$(this).attr("value"));
@@ -727,6 +1001,10 @@ HTML;
 			});
 			$(".agegroup").change(function(){
 				$.cookie("agegroup",$(this).attr("value"));
+				window.location=window.location;
+			});
+			$(".gender_selection").change(function(){
+				$.cookie("gender",$(this).attr("value"));
 				window.location=window.location;
 			});
 			$(".rinkno").change(function(){
@@ -738,8 +1016,9 @@ HTML;
 			});
 			$(".timerinput").change(function(){
 				var regno=$(this).attr("data_id");
+				var regid=$(this).attr("data_regid");
 				var tot=0,cnt=0,curr=$(this).parent();
-				$(".timer"+regno+".timerinput").each(function(){
+				$(".timer"+regid+".timerinput").each(function(){
 				var timeValue = $(this).attr("value")+"",sHours,sMinutes,sSec;
 				   //alert(timeValue + ' ' + timeValue == "");
 				    timeValue=timeValue.replace('.', ':');
@@ -796,7 +1075,7 @@ HTML;
 							tot+=temptotal;
 							//alert(temptotal);
 							if(temptotal==0)cnt--;
-					        	
+	
 				        	$.ajax({
 				        		type:'POST',
 				        		url:"./+edit",
@@ -804,13 +1083,15 @@ HTML;
 				        	{
 				        		timer_update:"1",
 				        		regno:regno,
+				        		regid:regid,
+				        		gender:curr.hasClass("male")?"male":"female",
 				        		agegroup:curr.find(".agegroup_input").attr("data_group"),
 				        		rinkno:cookie_rinkno,
-				        		timer1:($(".timer"+regno+".timerinput")[0].value==""?"59:59:59":$(".timer"+regno+".timerinput")[0].value),
-				        		timer2:($(".timer"+regno+".timerinput")[1].value==""?"59:59:59":$(".timer"+regno+".timerinput")[1].value),
-				        		timer3:($(".timer"+regno+".timerinput")[2].value==""?"59:59:59":$(".timer"+regno+".timerinput")[2].value),
-				        		timer4:($(".timer"+regno+".timerinput")[3].value==""?"59:59:59":$(".timer"+regno+".timerinput")[3].value),
-				        		timer5:($(".timer"+regno+".timerinput")[4].value==""?"59:59:59":$(".timer"+regno+".timerinput")[4].value)
+				        		timer1:($(".timer"+regid+".timerinput")[0].value==""?"59:59:59":$(".timer"+regid+".timerinput")[0].value),
+				        		timer2:($(".timer"+regid+".timerinput")[1].value==""?"59:59:59":$(".timer"+regid+".timerinput")[1].value),
+				        		timer3:($(".timer"+regid+".timerinput")[2].value==""?"59:59:59":$(".timer"+regid+".timerinput")[2].value),
+				        		timer4:($(".timer"+regid+".timerinput")[3].value==""?"59:59:59":$(".timer"+regid+".timerinput")[3].value),
+				        		timer5:($(".timer"+regid+".timerinput")[4].value==""?"59:59:59":$(".timer"+regid+".timerinput")[4].value)
 				        	},success:function(msg){
 				        		
 				        		//alert($("#timer_update",msg).html());
@@ -820,8 +1101,8 @@ HTML;
 				        		*/
 				        		
 				        		$(".participant.position").each(function(){
-				        			var this_regno=$(this).attr("data_regno");
-				        			var this_posn=$("#timer_position_"+this_regno,msg).html();
+				        			var this_regid=$(this).attr("data_regid");
+				        			var this_posn=$("#timer_position_"+this_regid,msg).html();
 				        			$(this).attr("value",this_posn);
 				        		});
 
@@ -846,14 +1127,15 @@ HTML;
 				    }	
 				});
 				var avg=parseInt(parseInt(tot/cnt)/3600)+":"+parseInt((parseInt(tot/cnt)%3600)/60)+":"+parseInt(parseInt(tot/cnt)%60);
-				$(".timer"+regno+".timeraverage").attr("value",avg);
+				$(".timer"+regid+".timeraverage").attr("value",avg);
 				//alert(avg);
 			});
 /*  POINTS CODE */
 			$(".pointinput,.altpointinput").change(function(){
 				var regno=$(this).attr("data_id");
+				var regid=$(this).attr("data_regid");
 				var tot=0.00,cnt=0,curr=$(this).parent();
-				$(".point"+regno+".pointinput").each(function(){
+				$(".point"+regid+".pointinput").each(function(){
 				var Value = parseFloat($(this).attr("value"));
 				   
 				    if(Value == "")
@@ -881,16 +1163,18 @@ HTML;
 				        	{
 				        		points_update:"1",
 				        		regno:regno,
+				        		regid:regid,
+				        		gender:curr.hasClass("male")?"male":"female",
 				        		agegroup:curr.find(".agegroup_input").attr("data_group"),
 				        		rinkno:cookie_rinkno,
-				        		point1:($(".point"+regno+".pointinput")[0].value==""?9999:$(".point"+regno+".pointinput")[0].value),
-				        		point2:($(".point"+regno+".pointinput")[1].value==""?9999:$(".point"+regno+".pointinput")[1].value),
-				        		point3:($(".point"+regno+".pointinput")[2].value==""?9999:$(".point"+regno+".pointinput")[2].value),
-				        		point4:($(".point"+regno+".pointinput")[3].value==""?9999:$(".point"+regno+".pointinput")[3].value),
-				        		point5:($(".point"+regno+".pointinput")[4].value==""?9999:$(".point"+regno+".pointinput")[4].value)
+				        		point1:($(".point"+regid+".pointinput")[0].value==""?9999:$(".point"+regid+".pointinput")[0].value),
+				        		point2:($(".point"+regid+".pointinput")[1].value==""?9999:$(".point"+regid+".pointinput")[1].value),
+				        		point3:($(".point"+regid+".pointinput")[2].value==""?9999:$(".point"+regid+".pointinput")[2].value),
+				        		point4:($(".point"+regid+".pointinput")[3].value==""?9999:$(".point"+regid+".pointinput")[3].value),
+				        		point5:($(".point"+regid+".pointinput")[4].value==""?9999:$(".point"+regid+".pointinput")[4].value)
 HTML;
 if($this->config_value("rink{$rink_no}_alternative_points","true"))	
-for($j=1;$j<=5;$j++)$html.=",\naltpoint{$j}:($('.altpoint'+regno+'.altpointinput')[".($j-1)."].value==''?9999:$('.altpoint'+regno+'.altpointinput')[".($j-1)."].value)";		        		
+for($j=1;$j<=5;$j++)$html.=",\naltpoint{$j}:($('.altpoint'+regid+'.altpointinput')[".($j-1)."].value==''?9999:$('.altpoint'+regid+'.altpointinput')[".($j-1)."].value)";		        		
 $html.=<<<HTML
 				        	},success:function(msg){
 				        		
@@ -900,12 +1184,12 @@ $html.=<<<HTML
 				        		curr.find(".position").attr("value",position);
 				        		*/
 				        		//alert(msg);
-				        		$(".altpoint"+regno+".total").attr("value",$("#points_total",msg).html());
-				        		$(".point"+regno+".pointaverage").attr("value",$("#points_average",msg).html());
-				        		$(".altpoint"+regno+".altpointaverage").attr("value",$("#points_altaverage",msg).html());
+				        		$(".altpoint"+regid+".total").attr("value",$("#points_total",msg).html());
+				        		$(".point"+regid+".pointaverage").attr("value",$("#points_average",msg).html());
+				        		$(".altpoint"+regid+".altpointaverage").attr("value",$("#points_altaverage",msg).html());
 				        		$(".participant.position").each(function(){
-				        			var this_regno=$(this).attr("data_regno");
-				        			var this_posn=$("#points_position_"+this_regno,msg).html();
+				        			var this_regid=$(this).attr("data_regid");
+				        			var this_posn=$("#points_position_"+this_regid,msg).html();
 				        			$(this).attr("value",this_posn);
 				  	      		});
 
@@ -924,7 +1208,7 @@ $html.=<<<HTML
 						       }
 							});
 				var avg=parseFloat(tot/cnt);
-				//$(".point"+regno+".pointaverage").attr("value",avg);
+				//$(".point"+regid+".pointaverage").attr("value",avg);
 				//alert(avg);
 			});
 
@@ -944,6 +1228,10 @@ $html.=<<<HTML
 		<option value='1416'>14 to 16</option>
 		<option value='16'>Above 16</option>
 		</select>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		Gender :<select class='gender_selection'>
+		<option value='male'>Male</option>
+		<option value='female'>Female</option>
+		</select>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 		Rink no: <select class='rinkno'>
 		<option value='1'>Rink 1</option>
 		<option value='2'>Rink 2</option>
@@ -959,35 +1247,45 @@ $html.=<<<HTML
 HTML;
 		$rink_no=mysql_real_escape_string($_COOKIE['rinkno']);
 		$age_group=mysql_real_escape_string($_COOKIE['agegroup']);
-		$query="SELECT * FROM `tournament_participants` WHERE `group` = '{$age_group}' AND `rink".$rink_no."` = '1' ORDER BY `$_COOKIE[sortby]`,`name`";
+		$gender=mysql_real_escape_string($_COOKIE['gender']);
+		$query="SELECT * FROM `tournament_participants` WHERE `gender` = '$gender' AND `group` = '{$age_group}' AND `rink".$rink_no."` = '1' ORDER BY `$_COOKIE[sortby]`,`name`";
 		//displayinfo($query);
 				$res=mysql_query($query);
 				if(mysql_error())displayerror(mysql_error()." for query ".$query);
 				//displayinfo(mysql_num_rows($res));
 if($type=="timer")
-$this->updateTimerPositions($rink_no,$age_group);
+$this->updateTimerPositions($rink_no,$age_group,$gender);
 if($type=="points")
 {
-	$this->updatePointsPositions($rink_no,$age_group);
+	$this->updatePointsPositions($rink_no,$age_group,$gender);
+
 	$html.="<div id='max_min' style=\"position:absolute;right:300px;top:220px\">MAXIMUM and MINIMUM Points are ".($this->config_value("rink{$rink_no}_cut_high_low","true")?"CUT":"")."</div>";
 	$alternative=$this->config_value("rink{$rink_no}_alternative_points","true");	
-	if($alternative)$html.="<style>input[type=text].pointinput,input[type=text].altpointinput,input[type=text].altpointaverage,input[type=text].pointaverage{width:50px!important;}</style>";
-	if($alternative)$html.="<style>input[type=text].total,input[type=text].position,input[type=text].altpointaverage,input[type=text].pointaverage{width:50px!important;}</style>";
+	$html.="<style>input[type=text].pointinput,input[type=text].altpointinput,input[type=text].altpointaverage,input[type=text].pointaverage{width:5%!important;text-align:center}</style>";
+	$html.="<style>input[type=text].total,input[type=text].position,input[type=text].altpointaverage,input[type=text].pointaverage{width:5%!important;text-align:center}</style>";
+	$html.="<style>input[type=text].smallinp{width:2%!important;}</style>";
 }	
 //displayinfo($query);
+if($type=="points")
+$html.="
+<pre>Reg. Name         Representing   Age Group  Point 1  Point 2  Point 3  Point 4  Point 5  Average Posn".($alternative==1?" Pt 1   Pt 2   Pt 3   Pt 4   Pt 5  Average  Total  Position":"")."</pre>
+";
+
 		while($row=mysql_fetch_assoc($res)){
 			$grp=$this->grouptostring($row['group']);
+			$regid=$row['id'];
+
 $html.=<<<HTML
 <div class='participant_div $row[gender] $row[club] $row[group]'>
-<input type='text' disabled class='participant' name='regno' data_id="$row[regno]" value="$row[regno]">
-<input type='text' disabled class='participant' name='name' data_id="$row[regno]" value="$row[name]">
-<input type='text' disabled class='participant' name='club' data_id="$row[regno]" value="$row[club]">
-<input type='text' disabled class='participant agegroup_input' data_group="$row[group]" disabled name='group' data_id="$row[regno]" value="$grp">  
+<input type='text' disabled class='participant smallinp' name='regno' data_id="$row[regno]" data_regid="$regid" value="$row[regno]">
+<input type='text' disabled class='participant' name='name' data_id="$row[regno]" data_regid="$regid" value="$row[name]">
+<input type='text' disabled class='participant' name='club' data_id="$row[regno]" data_regid="$regid" value="$row[club]">
+<input type='text' disabled class='participant agegroup_input' data_group="$row[group]" disabled name='group' data_id="$row[regno]" data_regid="$regid" value="$grp">  
 HTML;
 		if($type=="timer")
 	{
-$q="SELECT * FROM `tournament_timer` WHERE `regno` = '{$row['regno']}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
-$q_insert="INSERT INTO `tournament_timer`(`regno`,`group`,`rinkno`) VALUES('{$row['regno']}','{$age_group}','{$rink_no}')";
+$q="SELECT * FROM `tournament_timer` WHERE `regid` = '{$regid}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
+$q_insert="INSERT INTO `tournament_timer`(`regid`,`group`,`rinkno`) VALUES('{$regid}','{$age_group}','{$rink_no}')";
 $r=mysql_query($q);
 if(mysql_error())displayerror(mysql_error());
 
@@ -997,10 +1295,10 @@ if(mysql_error())displayerror(mysql_error());
 if(mysql_num_rows($r)==0)// now only new data was added
 {for($j=1;$j<=5;$j++)
 $html.=<<<HTML
-<input type='text' class='participant timer$row[regno] timerinput' placeholder='Timer {$j}' name='timer{$j}' data_id="$row[regno]" value="">
+<input type='text' class='participant timer$regid timerinput' placeholder='Timer {$j}' name='timer{$j}' data_id="$row[regno]" data_regid="$regid" value="">
 HTML;
-$html.="<input type='text' disabled class='participant timer$row[regno] timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' value=''>";
-$html.="<input type='text' placeholder='Position' disabled class='participant timer$row[regno] position' name='position' data_regno='$row[regno]' data_id='0' value=''>";
+$html.="<input type='text' disabled class='participant timer$regid timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' data_regid='$regid' value=''>";
+$html.="<input type='text' placeholder='Position' disabled class='participant smallinp timer$regid position' name='position' data_regno='$row[regno]' data_id='0'  data_regid='$regid' value=''>";
 }
 else
 while($rowvar=mysql_fetch_assoc($r))
@@ -1009,24 +1307,23 @@ while($rowvar=mysql_fetch_assoc($r))
 	{
 	$val=$rowvar['timer'.$j];
 	$val=($val!="59:59:59"?$val:"");
-	$html.="<input type='text' class='participant timer$row[regno] timerinput' placeholder='Timer {$j}' name='timer{$j}' data_id='$row[regno]' value='$val'>";
+	$html.="<input type='text' class='participant timer$regid timerinput' placeholder='Timer {$j}' name='timer{$j}' data_id='$row[regno]' data_regid='$regid' value='$val'>";
 	}
 	$val=$rowvar['timeravg']; 
 	$val=($val!="59:59:59"?$val:"");
-	$html.="<input type='text' disabled class='participant timer$row[regno] timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]' value='$val'>";
+	$html.="<input type='text' disabled class='participant timer$regid timeraverage' placeholder='Timer Average' name='timeravg' data_id='$row[regno]'  data_regid='$regid' value='$val'>";
 $posn=($rowvar[position]!="0"?$rowvar[position]:"");
-$html.="<input type='text' placeholder='Position' disabled class='participant timer$row[regno] position' name='position' data_regno='$row[regno]' data_id='$rowvar[position]' value='$posn'>";
+$html.="<input type='text' placeholder='Position' disabled class='participant smallinp timer$regid position' name='position' data_regno='$row[regno]' data_id='$rowvar[position]'  data_regid='$regid' value='$posn'>";
 }
 
 $html.=<<<HTML
 </div>
 HTML;
-
 }	// TYPE TIMER;
 else 		if($type=="points")
 	{
-$q="SELECT * FROM `tournament_points` WHERE `regno` = '{$row['regno']}' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
-$q_insert="INSERT INTO `tournament_points`(`regno`,`group`,`rinkno`) VALUES('{$row['regno']}','{$age_group}','{$rink_no}')";
+$q="SELECT * FROM `tournament_points` WHERE `regid` = '$regid' AND `rinkno` = '{$rink_no}' AND `group` = '{$age_group}'";
+$q_insert="INSERT INTO `tournament_points`(`regid`,`group`,`rinkno`) VALUES('$regid','{$age_group}','{$rink_no}')";
 $r=mysql_query($q);
 if(mysql_error())displayerror(mysql_error());
 
@@ -1039,18 +1336,18 @@ if(mysql_num_rows($r)==0)// now only new data was added
 	for($j=1;$j<=5;$j++)
 {
 $html.=<<<HTML
-<input type='text' class='participant point$row[regno] pointinput' placeholder='Point {$j}' name='point{$j}' data_id="$row[regno]" value="">
+<input type='text' class='participant point$regid pointinput' placeholder='Point {$j}' name='point{$j}' data_id="$row[regno]" data_regid="$regid" value="">
 HTML;
-$html.="<input style='bottom:-10px' type='text' class='participant point$row[regno] pointinput' placeholder='Point {$j}' name='point{$j}' data_id='$row[regno]' value=''>";
+$html.="<input style='bottom:-10px' type='text' class='participant point$regid pointinput' placeholder='Point {$j}' name='point{$j}' data_id='$row[regno]' data_regid='$regid' value=''>";
 }
-$html.="<input type='text' disabled class='participant point$row[regno] pointaverage' placeholder='Average Points' name='pointavg' data_id='$row[regno]' value=''>";
+$html.="<input type='text' disabled class='participant point$regid pointaverage' placeholder='Average Points' name='pointavg' data_id='$row[regno]' data_regid='$regid' value=''>";
 
 if($alternative){
 for($j=1;$j<=5;$j++)
-$html.="<input type='text' class='participant altpoint$row[regno] altpointinput' placeholder='Style {$j}' name='altpoint{$j}' data_id='$row[regno]' value=''>";
-$html.="<input type='text' disabled class='participant altpoint$row[regno] altpointaverage' placeholder='Average Points' name='pointavg' data_id='$row[regno]' value=''>";
+$html.="<input type='text' class='participant altpoint$regid altpointinput' placeholder='Style {$j}' name='altpoint{$j}' data_id='$row[regno]' data_regid='$regid' value=''>";
+$html.="<input type='text' disabled class='participant altpoint$regid altpointaverage' placeholder='Average Points' name='pointavg' data_id='$row[regno]' data_regid='$regid' value=''>";
 }
-$html.="<input type='text' placeholder='Position' disabled class='participant point$row[regno] position' name='position' data_regno='$row[regno]' data_id='0' value=''>";
+$html.="<input type='text' placeholder='Position' disabled class='participant smallinp point$regid position' name='position' data_regno='$row[regno]' data_id='0' data_regid='$regid' value=''>";
 }
 else
 while($rowvar=mysql_fetch_assoc($r))
@@ -1059,11 +1356,11 @@ while($rowvar=mysql_fetch_assoc($r))
 	{
 	$val=$rowvar['point'.$j];
 	$val=($val!="9999"?$val:"");
-	$html.="<input type='text' class='participant point$row[regno] pointinput' placeholder='Point {$j}' name='point{$j}' data_id='$row[regno]' value='$val'>";
+	$html.="<input type='text' class='participant point$regid pointinput' placeholder='Point {$j}' name='point{$j}' data_id='$row[regno]' data_regid='$regid' value='$val'>";
 	}
 	$val=$rowvar['pointavg']; 
 	$val=($val!="9999"?$val:"");
-	$html.="<input type='text' disabled class='participant point$row[regno] pointaverage' placeholder='Average' name='pointavg' data_id='$row[regno]' value='$val'>";
+	$html.="<input type='text' disabled class='participant point$regid pointaverage' placeholder='Average' name='pointavg' data_id='$row[regno]' data_regid='$regid' value='$val'>";
 	
 	if($alternative)
 	{
@@ -1071,18 +1368,18 @@ while($rowvar=mysql_fetch_assoc($r))
 	{
 	$val=$rowvar['alt_point'.$j];
 	$val=($val!="9999"?$val:"");
-	$html.="<input type='text' style='position:relative;' class='participant altpoint$row[regno] altpointinput' placeholder='Style {$j}' name='altpoint{$j}' data_id='$row[regno]' value='$val'>";
+	$html.="<input type='text' style='position:relative;' class='participant altpoint$regid altpointinput' placeholder='Style {$j}' name='altpoint{$j}' data_id='$row[regno]' data_regid='$regid' value='$val'>";
 	}
 	$val=$rowvar['alt_pointavg']; 
 	$val=($val!="9999"?$val:"");
 	$val1=$rowvar['total']; 
 	$val1=($val1!="9999"?$val1:"");
-	$html.="<input type='text' disabled class='participant altpoint$row[regno] altpointaverage' placeholder='Average' name='pointavg' data_id='$row[regno]' value='$val'>";
-	$html.="<input type='text' disabled class='participant altpoint$row[regno] total' placeholder='Total' name='total' data_id='$row[regno]' value='$val1'>";
+	$html.="<input type='text' disabled class='participant altpoint$regid altpointaverage' placeholder='Average' name='pointavg' data_id='$row[regno]' data_regid='$regid' value='$val'>";
+	$html.="<input type='text' disabled class='participant altpoint$regid total' placeholder='Total' name='total' data_id='$row[regno]' value='$val1'>";
 	}
 
 	$posn=($rowvar[position]!="0"?$rowvar[position]:"");
-	$html.="<input type='text' placeholder='Position' disabled class='participant point$row[regno] position' name='position' data_regno='$row[regno]' data_id='$rowvar[position]' value='$posn'>";
+	$html.="<input type='text' placeholder='Position' disabled class='participant smallinp point$regid position' name='position' data_regno='$row[regno]' data_id='$rowvar[position]' data_regid='$regid' value='$posn'>";
 }
 
 $html.=<<<HTML
@@ -1178,7 +1475,7 @@ include("./cms/$moduleFolder/tournament/config.php");
 }
 		return $html;
 	}
-
+	
 	public function createModule($compId) {
 		global $sourceFolder, $moduleFolder;
 		return true;
