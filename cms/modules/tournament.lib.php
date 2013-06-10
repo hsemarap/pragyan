@@ -56,7 +56,8 @@ require_once("$sourceFolder/$moduleFolder/quickregister/viewregistrants.php");
 	private $userId;
 	private $moduleComponentId;
 	private $action;
-	
+	//public $nowyear=date('Y');
+	public $nowyear=2013;
 	public function getHtml($gotuid, $gotmoduleComponentId, $gotaction) {
 		$this->userId = $gotuid;
 		$this->modulecomponentid = $gotmoduleComponentId;
@@ -348,7 +349,7 @@ HTML;
 	}
 	public function actionEdit() {
 		global $sourceFolder;		global $moduleFolder;
-		echo $this->getRegisterNo("06");
+		
 		if(isset($_POST['update']) && $_POST['update']==1){
 			$query=$_POST['query'];//mysql_real_escape_string($_GET['query']);
 			$group=$_POST['agegroup'];
@@ -361,11 +362,22 @@ HTML;
 				$res=mysql_query($q);
 				while($row=mysql_fetch_assoc($res))
 					$prevgrp="".$row['group'];
+	$d=explode(".",str_replace(":",".",str_replace("-",".",str_replace("/",".", "$value"))))[2];
+	$m=explode(".",str_replace(":",".",str_replace("-",".",str_replace("/",".", "$value"))))[1];
+	$y=explode(".",str_replace(":",".",str_replace("-",".",str_replace("/",".", "$value"))))[0];
+	
+				$group=$this->findgroup($this->nowyear - $y);
+				$regno=$this->getRegisterNo($group);
 				if($prevgrp!=$group)
-				$q="UPDATE `tournament_participants` SET `regno` = '$regno' WHERE `id` = '$id'";
+				$q="UPDATE `tournament_participants` SET `regno` = '$regno' , `group` = '$group' WHERE `id` = '$id'";
+				mysql_query($q);
+				$html="<div id='update' >($q)</div>";
+				$html="<div id='agegroup' >".$this->grouptostring($group)."</div>";
 			}
+			
+			if($name!='dob' && $name!='blood'){$name=mysql_real_escape_string($name);$value=mysql_real_escape_string($value);}
 			$q="UPDATE `tournament_participants` SET `$name` = '$value' WHERE `id` = '$id'";
-			$html="Your update query was ".$q."<br />";
+			$html.="Your update query was ".$q."<br />";
 			mysql_query($q);
 			if(mysql_error())$html.='Has errors '.mysql_error()."<br />";
 			else $html.="Executed successfully"."<br />";
@@ -562,16 +574,17 @@ alert(query);
 		$(".participant").change(function(){
 			var curr=$(this).parent(),dob_is_changed,agegrp=curr.find(".dobinput").attr("value");
 			var regid=$(this).attr('data_id');
-		if($(this).is(":checkbox")!=true)
-		var query="UPDATE `tournament_participants` SET `"+$(this).attr('name')+"` = '"+$(this).attr('value')+"' WHERE `id` = '"+$(this).attr('data_id')+"'";
-		else if($(this).is(".dobinput"))
+		if($(this).hasClass("dobinput"))
 		{	
 			var query="UPDATE `tournament_participants` SET `"+$(this).attr('name')+"` = '"+$(this).attr('value')+"' WHERE `id` = '"+$(this).attr('data_id')+"'";
 			dob_is_changed=true;			
 		}
+		else 
+		if($(this).is(":checkbox")!=true)
+		var query="UPDATE `tournament_participants` SET `"+$(this).attr('name')+"` = '"+$(this).attr('value')+"' WHERE `id` = '"+$(this).attr('data_id')+"'";
 		else
 		var query="UPDATE `tournament_participants` SET `"+$(this).attr('name')+"` = '"+($(this).attr('checked')==true?1:0)+"' WHERE `id` = '"+$(this).attr('data_id')+"'";
-
+		
 		$.ajax({type:"POST",url:"./+edit",data:{
 			update:1,
 			query:query,
@@ -580,7 +593,12 @@ alert(query);
 			regid:regid,
 			name:$(this).attr('name'),
 			value:$(this).attr('value')
-			},success:function(){
+			},success:function(msg){
+			//alert($("#update",msg).html());
+			if(dob_is_changed)
+			{
+				curr.find(".agegroup").attr("value",$("#agegroup",msg).html());	
+			}
 			curr.animate({background:"rgb(50,150,50)"},100);
 			curr.css("background","rgb(50,150,50)");
 			setTimeout(function(){curr.animate({background:"transparent"},100);},1000);
@@ -624,7 +642,7 @@ $query="SELECT * FROM `tournament_participants` ORDER BY `name`";
 $html.=<<<HTML
 <div class='participant_div $row[gender] $row[club] $row[group]'>
 <input type='text' class='participant' name='name' data_id="$row[id]" value="$row[name]"><input type='text' class='participant' name='gender' data_id="$row[id]" value="$row[gender]"><input type='text' class='participant' name='club' data_id="$row[id]" value="$row[club]">
-<input type='text' class='participant' disabled name='group' data_id="$row[id]" value="$grp"><input type='text' class='participant dobinput' name='dob' data_id="$row[id]" value="$row[dob]"><input type='text' class='participant' name='blood' data_id="$row[id]" value="$row[blood]">  
+<input type='text' class='participant agegroup' disabled name='group' data_id="$row[id]" value="$grp"><input type='text' class='participant dobinput' name='dob' data_id="$row[id]" value="$row[dob]"><input type='text' class='participant' name='blood' data_id="$row[id]" value="$row[blood]">  
 <input type='text' class='participant' name='phone1' data_id="$row[id]" value="$row[phone1]"><input type='text' class='participant' name='phone2' data_id="$row[id]" value="$row[phone2]">
 1<input class='participant' name='rink1' data_id="$row[id]" type="checkbox"  $temp[1]>2<input class='participant' name='rink2' data_id="$row[id]" type="checkbox"  $temp[2]>
 3<input class='participant' name='rink3' data_id="$row[id]" type="checkbox"  $temp[3]>4<input class='participant' name='rink4' data_id="$row[id]" type="checkbox"  $temp[4]>
@@ -1085,6 +1103,7 @@ HTML;
 		global $sourceFolder;		global $moduleFolder;
 		if(!isset($_FILES["file"]["name"]))
 {
+	//displayinfo(explode(".",str_replace("/",".", "25/24/1993"))[0]);
 $html=<<<HTML
 Upload an excel sheet with list of Participants and appropriate data.<br /><br />Download the 
 <a href='../../cms/$moduleFolder/tournament/sample.xls'> sample excel HERE</a>
@@ -1115,41 +1134,17 @@ include("./cms/$moduleFolder/tournament/config.php");
 			$sno = mysql_real_escape_string($excelData[$i][$ii++]);
 			$name= mysql_real_escape_string($excelData[$i][$ii++]);
 			$gender= mysql_real_escape_string($excelData[$i][$ii++]);
-			$dob=mysql_real_escape_string($excelData[$i][$ii++]);
+			$dob=($excelData[$i][$ii++]);
 			$bloodgrp= mysql_real_escape_string($excelData[$i][$ii++]);
 			$club= mysql_real_escape_string($excelData[$i][$ii++]);
 			$phone1= mysql_real_escape_string($excelData[$i][$ii++]);
 			$phone2= mysql_real_escape_string($excelData[$i][$ii++]);
-			//displayinfo($sno.$name.$gender.$dob.$bloodgrp.$club.$phone1.$phone2);
-			$y=substr($dob,-4);
-//			displayinfo("strlen is ".strlen($dob));
-	if(strlen($dob)==10)
-	{
-	$m=substr($dob,3,2);
-	$d=substr($dob,0,2);
-	}
-	else if(strlen($dob)==8)
-	{
-	$m=substr($dob,2,1);
-	$d=substr($dob,0,1);
-	}
-	else if(strlen($dob)==9)
-	{
-	if($dob[2]=='/'||$dob[2]=='-')
-	{
-	$m=substr($dob,3,1);
-	$d=substr($dob,0,2);
-	}
-	else 
-	{
-	$m=substr($dob,2,2);
-	$d=substr($dob,0,1);
-	}
-	}
-	$nowyear=date('Y');
-	$nowyear=2013;
+	
+	$d=explode(".",str_replace(":",".",str_replace("-",".",str_replace("/",".", "$dob"))))[0];
+	$m=explode(".",str_replace(":",".",str_replace("-",".",str_replace("/",".", "$dob"))))[1];
+	$y=explode(".",str_replace(":",".",str_replace("-",".",str_replace("/",".", "$dob"))))[2];
 	$y=intval($y);
-
+	//displayinfo($dob."   ".$d."   ".$m."   ".$y);
 	$rinks=array();
 	foreach ($eventname as $ev1)
 	{
@@ -1157,7 +1152,7 @@ include("./cms/$moduleFolder/tournament/config.php");
 	$rinks[]=(($dd=='X'||$dd=='Y'||$dd=='x'||$dd=='y'||$dd=='.')?1:0);
 	}
 
-	$age=$nowyear-$y;
+	$age=$this->$nowyear-$y;
 	$grp=$this->findgroup($age);
 			$sql1="INSERT IGNORE INTO $table VALUES ('$regno','$name', '$age','$gender','$grp', '$y-$m-$d', '$phone1', '$phone2');";
 			
@@ -1170,7 +1165,7 @@ include("./cms/$moduleFolder/tournament/config.php");
 	foreach ($rinks as $r1)
 	$sql.=",".$r1."";
 	$sql.=");";
-	displayinfo($sql);
+	//displayinfo($sql);
 	
 	$result=mysql_query($sql);
 	//echo $sql."<br />";
@@ -1178,7 +1173,7 @@ include("./cms/$moduleFolder/tournament/config.php");
 	displayerror("ERROR WAS:".mysql_error());
 	else $ctr++;
 			}		
-	displayinfo($ctr." entries added successfully");
+	displayinfo($ctr." entr".($ctr>1?"ies":"y")." added successfully");
 
 }
 		return $html;
