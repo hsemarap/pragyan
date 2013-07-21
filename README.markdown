@@ -1,3 +1,20 @@
+**Edit
+  ====
+  Also Includes 
+  
+  SkateGyan
+  =========
+  A Tournament Management App to organise any tournament, especially designed for Skating Tournaments,
+  that generates the event schedule,event participant details and generates the result of all events in
+  various formats for the organizers to verify and declare the final results.
+  
+  Easy Attendance
+  ==========
+  Attendance Tracker App for tracking attendance of students for different sessions / class each
+  day with a user friendly interface.A simplistic app where you enter the roll numbers of students to mark
+  them either as present / absent.
+  
+==========
 PragyanCMS
 ==========
 
